@@ -1,0 +1,1770 @@
+/* ─── Peachtree Match Play — theme + components ─────────────────────────────
+   Change colors here only. Components use these variables / classes.
+──────────────────────────────────────────────────────────────────────────── */
+
+@import url("https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap");
+
+:root {
+  /* Surfaces — deep fairway green */
+  --bg: #164931;
+  --bg-card: #1c5439;
+  --bg-muted: #245e41;
+  --bg-white: #1a3f2e;
+  --bg-input: rgba(0, 0, 0, 0.22);
+
+  /* Text — white / soft mint on green */
+  --text: #ffffff;
+  --text-heading: #ffffff;
+  --text-muted: #9bbfaa;
+  --text-faint: #6b8c79;
+  --text-on-accent: #164931;
+
+  /* Accent — white (no peach) */
+  --accent: #ffffff;
+  --accent-hover: #e8f0ec;
+  --accent-faint: rgba(255, 255, 255, 0.12);
+  --accent-border: rgba(255, 255, 255, 0.35);
+  --accent-text: #ffffff;
+  --accent-text-strong: #e8f0ec;
+
+  /* Green helpers */
+  --green: #164931;
+  --green-strong: #7dc48a;
+  --green-faint: rgba(125, 196, 138, 0.18);
+
+  /* Danger */
+  --danger: #e07070;
+  --danger-faint: rgba(192, 57, 43, 0.22);
+  --danger-border: rgba(192, 57, 43, 0.45);
+
+  /* Borders / shadows */
+  --border: rgba(255, 255, 255, 0.14);
+  --border-soft: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.22);
+  --border-active: rgba(255, 255, 255, 0.45);
+  --shadow-nav: 0 -2px 12px rgba(0, 0, 0, 0.25);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.15);
+  --shadow-toast: 0 4px 20px rgba(0, 0, 0, 0.35);
+  --shadow-modal: 0 -6px 30px rgba(0, 0, 0, 0.4);
+  --overlay: rgba(8, 20, 14, 0.7);
+
+  /* Radius */
+  --radius: 6px;
+  --radius-sm: 4px;
+  --radius-xs: 3px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  font-family: "Montserrat", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  font-size: 15px;
+  color: var(--text);
+}
+
+input,
+button,
+select {
+  font-family: inherit;
+  outline: none;
+}
+
+button {
+  cursor: pointer;
+}
+
+/* ─── Text utilities ──────────────────────────────────────────────────────── */
+.t-heading {
+  color: var(--text-heading);
+}
+.t-body {
+  color: var(--text);
+}
+.t-muted {
+  color: var(--text-muted);
+}
+.t-faint {
+  color: var(--text-faint);
+}
+.t-accent {
+  color: var(--accent-text);
+}
+.t-accent-strong {
+  color: var(--accent-text-strong);
+}
+.t-danger {
+  color: var(--danger);
+}
+.t-win {
+  color: var(--green-strong);
+}
+.t-on-accent {
+  color: var(--text-on-accent);
+}
+
+.font-label {
+  font-family: "Montserrat", sans-serif;
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+.font-label-wide {
+  font-family: "Montserrat", sans-serif;
+  font-size: 9px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+.font-meta {
+  font-family: "Montserrat", sans-serif;
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+.font-meta-sm {
+  font-family: "Montserrat", sans-serif;
+  font-size: 11px;
+}
+
+.fw-600 {
+  font-weight: 600;
+}
+.fw-700 {
+  font-weight: 700;
+}
+.fw-900 {
+  font-weight: 900;
+}
+
+.ta-center {
+  text-align: center;
+}
+.ta-right {
+  text-align: right;
+}
+.ta-left {
+  text-align: left;
+}
+
+.flex {
+  display: flex;
+}
+.flex-col {
+  display: flex;
+  flex-direction: column;
+}
+.flex-1 {
+  flex: 1;
+}
+.flex-wrap {
+  flex-wrap: wrap;
+}
+.items-center {
+  align-items: center;
+}
+.justify-between {
+  justify-content: space-between;
+}
+.justify-center {
+  justify-content: center;
+}
+.gap-4 {
+  gap: 4px;
+}
+.gap-6 {
+  gap: 6px;
+}
+.gap-8 {
+  gap: 8px;
+}
+.gap-10 {
+  gap: 10px;
+}
+.shrink-0 {
+  flex-shrink: 0;
+}
+
+.mb-0 {
+  margin-bottom: 0;
+}
+.mb-2 {
+  margin-bottom: 2px;
+}
+.mb-3 {
+  margin-bottom: 3px;
+}
+.mb-4 {
+  margin-bottom: 4px;
+}
+.mb-6 {
+  margin-bottom: 6px;
+}
+.mb-8 {
+  margin-bottom: 8px;
+}
+.mb-10 {
+  margin-bottom: 10px;
+}
+.mb-12 {
+  margin-bottom: 12px;
+}
+.mb-14 {
+  margin-bottom: 14px;
+}
+.mb-16 {
+  margin-bottom: 16px;
+}
+.mb-20 {
+  margin-bottom: 20px;
+}
+.mb-24 {
+  margin-bottom: 24px;
+}
+.mb-28 {
+  margin-bottom: 28px;
+}
+.mt-4 {
+  margin-top: 4px;
+}
+.mt-8 {
+  margin-top: 8px;
+}
+.mt-10 {
+  margin-top: 10px;
+}
+.mt-12 {
+  margin-top: 12px;
+}
+.ml-6 {
+  margin-left: 6px;
+}
+.mr-4 {
+  margin-right: 4px;
+}
+
+.w-full {
+  width: 100%;
+}
+.w-60 {
+  width: 60px;
+}
+
+/* ─── App shell ───────────────────────────────────────────────────────────── */
+.mp-root {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.mp-loading {
+  min-height: 100vh;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.mp-loading-text {
+  font-family: "Montserrat", sans-serif;
+  color: var(--accent-text);
+  font-size: 12px;
+  letter-spacing: 3px;
+}
+
+.mp-page {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 24px 16px 100px;
+}
+.mp-page.pt-20 {
+  padding-top: 20px;
+}
+.mp-page.pt-60 {
+  padding-top: 60px;
+}
+.mp-page.pb-100 {
+  padding-bottom: 100px;
+}
+
+.mp-section-eyebrow {
+  font-family: "Montserrat", sans-serif;
+  font-size: 9px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--accent-text);
+  margin-bottom: 6px;
+}
+.mp-section-title {
+  font-family: "Georgia", serif;
+  font-size: 26px;
+  font-weight: 400;
+  color: var(--text-heading);
+  line-height: 1.15;
+  margin-bottom: 4px;
+}
+.mp-section-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 28px;
+  line-height: 1.5;
+}
+
+/* ─── Topbar ──────────────────────────────────────────────────────────────── */
+.mp-topbar {
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.mp-topbar-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.mp-topbar-logo img {
+  width: 40px;
+  height: 40px;
+  border-radius: 0;
+  display: block;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+.mp-topbar-logo-text {
+  font-family: "Montserrat", sans-serif;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-heading);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  line-height: 1.15;
+}
+.mp-topbar-logo-text span {
+  color: var(--text-heading);
+}
+.mp-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.mp-topbar-badge {
+  font-family: "Montserrat", sans-serif;
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--accent-text);
+  background: var(--accent-faint);
+  border: 1px solid var(--accent-border);
+  padding: 4px 10px;
+  border-radius: 2px;
+}
+.mp-exit-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  padding: 4px 10px;
+  font-family: "Montserrat", sans-serif;
+  font-size: 9px;
+  color: var(--text-muted);
+  cursor: pointer;
+  letter-spacing: 1px;
+}
+
+/* ─── Tabs / nav ──────────────────────────────────────────────────────────── */
+.mp-tourn-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  position: sticky;
+  top: 65px;
+  z-index: 99;
+}
+.mp-tourn-tab {
+  flex: 1;
+  padding: 12px 8px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-faint);
+  font-family: "Montserrat", sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  transition: all 0.15s;
+  margin-bottom: -1px;
+  text-align: center;
+}
+.mp-tourn-tab.active {
+  color: var(--green);
+  border-bottom-color: var(--accent);
+}
+.mp-tourn-tab-name {
+  font-size: 12px;
+}
+.mp-tourn-tab-year {
+  font-size: 9px;
+  opacity: 0.7;
+  margin-top: 2px;
+  letter-spacing: 1px;
+}
+
+.mp-underline-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0;
+}
+.mp-underline-tabs.sticky {
+  background: var(--bg);
+  position: sticky;
+  top: 65px;
+  z-index: 99;
+}
+.mp-underline-tab {
+  flex: 1;
+  padding: 12px 8px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-faint);
+  font-family: "Montserrat", sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-bottom: -1px;
+}
+.mp-underline-tab.is-active {
+  color: var(--accent-text);
+  border-bottom-color: var(--accent);
+}
+.mp-underline-tab.pad-sm {
+  padding: 10px 14px;
+  flex: 0 0 auto;
+}
+
+.mp-bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  display: flex;
+  z-index: 100;
+  padding-bottom: env(safe-area-inset-bottom);
+  box-shadow: var(--shadow-nav);
+}
+.mp-nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 10px 4px 8px;
+  background: transparent;
+  border: none;
+  color: var(--text-faint);
+  font-family: "Montserrat", sans-serif;
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  transition: color 0.15s;
+}
+.mp-nav-item.active {
+  color: var(--green);
+}
+.mp-nav-item .nav-icon {
+  font-size: 18px;
+}
+
+.mp-segment {
+  display: flex;
+  gap: 8px;
+}
+.mp-seg-btn {
+  flex: 1;
+  padding: 9px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font-family: "Montserrat", sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.mp-seg-btn.is-active {
+  border-color: var(--border-active);
+  background: var(--accent-faint);
+  color: var(--accent-text);
+}
+
+/* ─── Cards ───────────────────────────────────────────────────────────────── */
+.mp-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-card);
+}
+.mp-card.pad-lg {
+  padding: 24px;
+}
+.mp-card.pad-xl {
+  padding: 32px;
+}
+.mp-card-title {
+  font-family: "Montserrat", sans-serif;
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--accent-text);
+  margin-bottom: 14px;
+}
+
+/* ─── Forms ───────────────────────────────────────────────────────────────── */
+.mp-input {
+  width: 100%;
+  background: var(--bg-white);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 11px 14px;
+  font-size: 14px;
+  color: var(--text);
+  transition: border-color 0.15s;
+  margin-bottom: 16px;
+}
+.mp-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.18);
+}
+.mp-input::placeholder {
+  color: var(--text-faint);
+}
+.mp-input.error {
+  border-color: var(--danger);
+}
+.mp-label {
+  display: block;
+  font-size: 11px;
+  font-family: "Montserrat", sans-serif;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+.mp-stepper {
+  display: flex;
+  align-items: center;
+  background: var(--bg-white);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+.mp-stepper-btn {
+  background: transparent;
+  border: none;
+  color: var(--accent-text);
+  font-size: 20px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.mp-stepper-btn:disabled {
+  color: var(--text-faint);
+}
+.mp-stepper-val {
+  flex: 1;
+  text-align: center;
+  font-family: "Montserrat", sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-heading);
+}
+.mp-stepper-hint {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-align: center;
+  margin-top: -10px;
+  margin-bottom: 16px;
+  font-family: "Montserrat", sans-serif;
+}
+.mp-team-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.mp-team-input-wrap {
+  position: relative;
+}
+.mp-team-num {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: "Montserrat", sans-serif;
+  font-size: 10px;
+  color: var(--text-faint);
+  pointer-events: none;
+}
+.mp-team-input-wrap .mp-input {
+  padding-left: 28px;
+  margin-bottom: 0;
+  font-size: 13px;
+}
+
+/* ─── Buttons ─────────────────────────────────────────────────────────────── */
+.mp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 13px 24px;
+  border-radius: var(--radius-sm);
+  border: none;
+  font-family: "Montserrat", sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  transition: all 0.15s;
+  width: 100%;
+}
+.mp-btn-primary {
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+.mp-btn-primary:hover {
+  background: var(--accent-hover);
+}
+.mp-btn-primary:disabled {
+  background: var(--bg-muted);
+  color: var(--text-faint);
+  cursor: not-allowed;
+}
+.mp-btn-ghost {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border-strong);
+}
+.mp-btn-ghost:hover {
+  color: var(--green);
+  border-color: var(--border-active);
+}
+.mp-btn-ghost.is-accent {
+  border-color: var(--border-active);
+  color: var(--accent-text);
+}
+.mp-btn-danger {
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid var(--danger-border);
+}
+.mp-btn-sign {
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-weight: 700;
+}
+.mp-btn-sign:hover {
+  background: var(--accent-hover);
+}
+.mp-btn.flex-1 {
+  flex: 1;
+  width: auto;
+}
+.mp-btn.flex-2 {
+  flex: 2;
+  width: auto;
+}
+.flex-2 {
+  flex: 2;
+}
+.mp-clickable {
+  cursor: pointer;
+}
+.mp-side-btn {
+  opacity: 1;
+}
+.mp-side-btn:disabled {
+  opacity: 0.55;
+}
+
+.mp-back-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-family: "Montserrat", sans-serif;
+  font-size: 11px;
+  letter-spacing: 1px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.mp-back-btn.mb {
+  margin-bottom: 12px;
+}
+
+.mp-edit-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  padding: 3px 8px;
+  font-family: "Montserrat", sans-serif;
+  font-size: 9px;
+  color: var(--accent-text);
+  letter-spacing: 1px;
+  cursor: pointer;
+}
+.mp-edit-btn.pad-md {
+  padding: 4px 10px;
+}
+
+.mp-link-admin {
+  background: transparent;
+  border: none;
+  font-family: "Montserrat", sans-serif;
+  font-size: 8px;
+  color: var(--text-faint);
+  cursor: pointer;
+  letter-spacing: 2px;
+  opacity: 0.45;
+}
+.mp-link-admin:hover {
+  opacity: 0.8;
+}
+.mp-admin-footer {
+  text-align: center;
+  padding: 8px 0 20px;
+}
+
+/* ─── Badges ──────────────────────────────────────────────────────────────── */
+.badge {
+  display: inline-block;
+  font-family: "Montserrat", sans-serif;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 2px;
+}
+.badge-pending {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text-muted);
+}
+.badge-active {
+  background: var(--accent-faint);
+  color: var(--accent-text);
+}
+.badge-done {
+  background: var(--green-faint);
+  color: var(--green);
+}
+.badge-advanced {
+  background: rgba(255, 255, 255, 0.22);
+  color: var(--accent-text-strong);
+}
+.badge-elim {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-faint);
+}
+.badge-disputed {
+  background: var(--danger-faint);
+  color: var(--danger);
+}
+.badge-validation {
+  background: var(--accent-faint);
+  color: var(--accent-text);
+}
+
+.mp-error {
+  font-size: 12px;
+  color: var(--danger);
+  font-family: "Montserrat", sans-serif;
+  margin-bottom: 12px;
+}
+
+.mp-toast {
+  position: fixed;
+  bottom: 90px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 10px 20px;
+  font-family: "Montserrat", sans-serif;
+  font-size: 12px;
+  color: var(--text-on-accent);
+  z-index: 200;
+  white-space: nowrap;
+  box-shadow: var(--shadow-toast);
+  animation: slideUp 0.2s ease;
+}
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* ─── Password ────────────────────────────────────────────────────────────── */
+.mp-pw-screen {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 24px;
+  position: relative;
+}
+.mp-pw-back {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-family: "Montserrat", sans-serif;
+  font-size: 11px;
+  letter-spacing: 1px;
+  cursor: pointer;
+  padding: 8px 4px;
+}
+.mp-pw-back:hover {
+  color: var(--text);
+}
+.mp-pw-crest {
+  width: 96px;
+  height: 96px;
+  border-radius: 0;
+  display: block;
+  margin-bottom: 20px;
+  object-fit: contain;
+}
+.mp-pw-title {
+  font-family: "Georgia", serif;
+  font-size: 28px;
+  font-weight: 400;
+  color: var(--text-heading);
+  text-align: center;
+  margin-bottom: 6px;
+}
+.mp-pw-title span {
+  color: var(--text-muted);
+}
+.mp-pw-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
+  margin-bottom: 32px;
+  font-family: "Montserrat", sans-serif;
+}
+.mp-pw-form {
+  width: 100%;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.mp-pw-input {
+  width: 100%;
+  background: var(--bg-white);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  font-size: 18px;
+  color: var(--text);
+  text-align: center;
+  letter-spacing: 6px;
+  transition: border-color 0.15s;
+}
+.mp-pw-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.18);
+}
+.mp-pw-input.error {
+  border-color: var(--danger);
+}
+.mp-pw-input::placeholder {
+  letter-spacing: 2px;
+  font-size: 13px;
+  color: var(--text-faint);
+}
+
+/* ─── Scorecard ───────────────────────────────────────────────────────────── */
+.sc-shell {
+  max-width: 640px;
+  margin: 0 auto;
+  padding-bottom: 40px;
+}
+.sc-banner {
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  padding: 16px;
+}
+.sc-teams-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.sc-team-name {
+  font-family: "Georgia", serif;
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--text-heading);
+}
+.sc-team-name.right {
+  text-align: right;
+}
+.sc-vs {
+  font-family: "Montserrat", sans-serif;
+  font-size: 10px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.sc-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  transition: all 0.2s;
+}
+.sc-status-label {
+  font-family: "Montserrat", sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+.sc-status-detail {
+  font-family: "Montserrat", sans-serif;
+  font-size: 10px;
+  opacity: 0.75;
+  margin-top: 2px;
+  letter-spacing: 0.5px;
+}
+.sc-st-neutral {
+  background: var(--accent-faint);
+  color: var(--accent-text);
+}
+.sc-st-lead {
+  background: var(--green-faint);
+  color: var(--green);
+}
+.sc-st-dormy {
+  background: rgba(255, 255, 255, 0.22);
+  color: var(--accent-text-strong);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+.sc-st-closed {
+  background: rgba(125, 196, 138, 0.22);
+  color: var(--green);
+}
+.sc-st-halved {
+  background: var(--accent-faint);
+  color: var(--accent-text);
+}
+.sc-st-unstarted {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-muted);
+}
+.sc-tally {
+  display: flex;
+  gap: 2px;
+  padding: 0 0 12px;
+  flex-wrap: wrap;
+}
+.sc-tally-pip {
+  width: 16px;
+  height: 16px;
+  border-radius: 2px;
+  font-family: "Montserrat", sans-serif;
+  font-size: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sc-tally-A {
+  background: rgba(125, 196, 138, 0.22);
+  color: var(--green);
+}
+.sc-tally-B {
+  background: var(--danger-faint);
+  color: var(--danger);
+}
+.sc-tally-H {
+  background: var(--accent-faint);
+  color: var(--accent-text);
+}
+.sc-tally-empty {
+  background: rgba(255, 255, 255, 0.06);
+}
+.sc-hole-grid {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.sc-hole-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+}
+.sc-hole-row.closed-auto {
+  opacity: 0.3;
+}
+.sc-hole-num {
+  font-family: "Montserrat", sans-serif;
+  font-size: 11px;
+  color: var(--text-faint);
+  width: 22px;
+  flex-shrink: 0;
+}
+.sc-hole-btns {
+  display: flex;
+  gap: 5px;
+  flex: 1;
+}
+.sc-hole-btn {
+  flex: 1;
+  padding: 9px 4px;
+  border-radius: var(--radius-xs);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: var(--bg-white);
+  font-family: "Montserrat", sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  transition: all 0.12s;
+}
+.sc-hole-btn:hover:not(:disabled) {
+  border-color: var(--border-active);
+  color: var(--green);
+}
+.sc-hole-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+.sc-hole-btn.sel-A {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: var(--green);
+  color: var(--green);
+}
+.sc-hole-btn.sel-H {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+.sc-hole-btn.sel-B {
+  background: var(--danger-faint);
+  border-color: rgba(179, 38, 30, 0.55);
+  color: var(--danger);
+}
+.sc-hole-result {
+  font-family: "Montserrat", sans-serif;
+  font-size: 9px;
+  width: 28px;
+  text-align: right;
+  flex-shrink: 0;
+  color: var(--text-faint);
+}
+.sc-hole-result.is-A {
+  color: var(--green-strong);
+}
+.sc-hole-result.is-B {
+  color: var(--danger);
+}
+.sc-hole-result.is-H {
+  color: var(--accent-text);
+}
+.sc-result-box {
+  margin: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  text-align: center;
+}
+.sc-result-trophy {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+.sc-result-winner {
+  font-family: "Georgia", serif;
+  font-size: 22px;
+  font-weight: 400;
+  color: var(--text-heading);
+  margin-bottom: 4px;
+}
+.sc-result-score {
+  font-family: "Montserrat", sans-serif;
+  font-size: 14px;
+  color: var(--accent-text);
+  letter-spacing: 2px;
+  margin-bottom: 20px;
+}
+.sc-holes-hint {
+  padding: 12px 16px 4px;
+  font-family: "Montserrat", sans-serif;
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.sc-hint-empty {
+  padding: 20px 16px;
+  text-align: center;
+  font-family: "Montserrat", sans-serif;
+  font-size: 11px;
+  color: var(--text-faint);
+  letter-spacing: 1px;
+}
+.sc-locked-note {
+  font-family: "Montserrat", sans-serif;
+  font-size: 11px;
+  color: var(--green-strong);
+  letter-spacing: 1px;
+}
+
+/* ─── Notices / callouts ──────────────────────────────────────────────────── */
+.mp-notice {
+  margin: 12px 16px 0;
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-family: "Montserrat", sans-serif;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.mp-notice-info {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-strong);
+  color: var(--accent-text);
+}
+.mp-notice-danger {
+  background: rgba(179, 38, 30, 0.12);
+  border: 1px solid rgba(179, 38, 30, 0.3);
+  color: var(--danger);
+}
+.mp-callout {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: "Montserrat", sans-serif;
+}
+.mp-callout-box {
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  margin-top: 12px;
+}
+.mp-callout-box.is-clean {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+.mp-callout-box.is-warn {
+  background: var(--accent-faint);
+  border: 1px solid var(--accent-border);
+}
+.mp-callout-box-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.mp-callout-box-foot {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  line-height: 1.5;
+}
+.mp-info-box {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  margin-bottom: 20px;
+  font-family: "Montserrat", sans-serif;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ─── Choice / side pick ──────────────────────────────────────────────────── */
+.mp-choice-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.mp-choice {
+  flex: 1;
+  padding: 12px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.mp-choice.is-active {
+  border-color: rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.12);
+}
+.mp-choice-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.mp-choice.is-active .mp-choice-title {
+  color: var(--accent-text);
+}
+.mp-choice-sub {
+  font-size: 10px;
+  color: var(--text-faint);
+  font-family: "Montserrat", sans-serif;
+}
+
+.mp-side-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.mp-side-btn {
+  width: 100%;
+  text-align: left;
+  padding: 16px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
+}
+.mp-side-btn:disabled {
+  background: var(--bg-muted);
+  border-color: var(--border-soft);
+  cursor: not-allowed;
+}
+.mp-side-btn-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-heading);
+  margin-bottom: 4px;
+}
+.mp-side-btn:disabled .mp-side-btn-name {
+  color: var(--text-faint);
+}
+.mp-side-btn-meta {
+  font-family: "Montserrat", sans-serif;
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+}
+.mp-side-btn:disabled .mp-side-btn-meta {
+  color: var(--danger);
+}
+
+.mp-result-btn {
+  flex: 1;
+  padding: 10px 4px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font-family: "Montserrat", sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.mp-result-btn.is-active {
+  border-color: rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--accent-text);
+}
+.mp-modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+.mp-modal-cancel {
+  flex: 1;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-muted);
+  font-family: "Montserrat", sans-serif;
+  font-size: 11px;
+  letter-spacing: 1px;
+  cursor: pointer;
+}
+
+/* ─── Match / bracket rows ────────────────────────────────────────────────── */
+.mp-match-row-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  margin-bottom: 6px;
+  cursor: pointer;
+  transition: background 0.1s;
+  border-left: 3px solid var(--accent-text);
+}
+.mp-match-row-item:hover {
+  background: var(--bg-muted);
+}
+.mp-match-row-item.is-closed {
+  border-left-color: var(--text-faint);
+}
+.mp-match-row-item.is-disputed {
+  border-left-color: var(--danger);
+}
+.mp-match-name {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-heading);
+}
+.mp-match-name.is-winner {
+  color: var(--accent-text);
+}
+.mp-match-name.right {
+  text-align: right;
+}
+.mp-match-vs {
+  font-family: "Montserrat", sans-serif;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+.mp-match-bye {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.mp-bracket-card {
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  overflow: hidden;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+.mp-bracket-card.is-disputed {
+  border-color: rgba(179, 38, 30, 0.4);
+}
+.mp-bracket-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: transparent;
+  border-bottom: 1px solid var(--border-soft);
+}
+.mp-bracket-row:last-child {
+  border-bottom: none;
+}
+.mp-bracket-row.is-winner {
+  background: var(--green-faint);
+}
+.mp-bracket-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-heading);
+}
+.mp-bracket-row.is-winner .mp-bracket-name {
+  color: var(--accent-text);
+}
+.mp-bracket-name.is-empty {
+  color: var(--text-faint);
+}
+.mp-bracket-score {
+  font-family: "Montserrat", sans-serif;
+  font-size: 10px;
+  color: var(--accent-text);
+}
+
+.mp-round-label {
+  font-family: "Montserrat", sans-serif;
+  font-size: 9px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--accent-text);
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.mp-round-label.mb-10 {
+  margin-bottom: 10px;
+}
+
+.mp-admin-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-sm);
+  margin-bottom: 5px;
+  border-left: 3px solid var(--accent-text);
+}
+.mp-admin-row.is-closed {
+  border-left-color: var(--text-faint);
+}
+.mp-admin-row.is-disputed {
+  border-left-color: var(--danger);
+}
+.mp-admin-row.is-schedule {
+  padding: 10px 12px;
+  margin-bottom: 6px;
+}
+.mp-status-meta {
+  font-family: "Montserrat", sans-serif;
+  font-size: 9px;
+  color: var(--text-muted);
+  margin-right: 4px;
+}
+.mp-status-meta.is-closed {
+  color: var(--green-strong);
+}
+.mp-status-meta.is-disputed {
+  color: var(--danger);
+}
+
+/* ─── Tables ──────────────────────────────────────────────────────────────── */
+.mp-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.mp-th {
+  font-family: "Montserrat", sans-serif;
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.mp-th.center {
+  text-align: center;
+}
+.mp-td {
+  padding: 9px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  color: var(--text-heading);
+}
+.mp-td.is-winner {
+  color: var(--accent-text);
+}
+.mp-td.is-elim {
+  color: var(--text-faint);
+}
+.mp-td.center {
+  text-align: center;
+  font-family: "Montserrat", sans-serif;
+  color: var(--text-muted);
+}
+.mp-td.is-win-stat {
+  color: var(--accent-text);
+}
+.mp-td.is-loss-stat {
+  color: var(--danger);
+}
+.mp-td.is-margin {
+  color: var(--accent-text);
+}
+
+.mp-list-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.mp-list-row.pad-y {
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+.mp-list-row.pad-hist {
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+/* ─── Setup progress ──────────────────────────────────────────────────────── */
+.mp-steps {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 28px;
+}
+.mp-step {
+  flex: 1;
+}
+.mp-step-bar {
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.2);
+  margin-bottom: 5px;
+}
+.mp-step-bar.is-done {
+  background: var(--accent-text);
+}
+.mp-step-bar.is-past {
+  opacity: 0.4;
+}
+.mp-step-label {
+  font-family: "Montserrat", sans-serif;
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.mp-step-label.is-current {
+  color: var(--accent-text);
+}
+
+.mp-chip {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-xs);
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--text);
+  font-family: "Montserrat", sans-serif;
+}
+.mp-group-preview-title {
+  font-family: "Montserrat", sans-serif;
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--accent-text);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 12px;
+}
+.mp-group-preview-body {
+  border-top: 1px solid var(--border-soft);
+  padding-top: 12px;
+  margin-top: 4px;
+}
+
+/* ─── Champion / empty ────────────────────────────────────────────────────── */
+.mp-champion {
+  text-align: center;
+  padding: 32px 0 20px;
+}
+.mp-champion-emoji {
+  font-size: 56px;
+  margin-bottom: 12px;
+}
+.mp-champion-emoji.sm {
+  font-size: 40px;
+}
+.mp-champion-emoji.md {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+.mp-champion-label {
+  font-family: "Montserrat", sans-serif;
+  font-size: 9px;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: var(--accent-text);
+  margin-bottom: 8px;
+}
+.mp-champion-name {
+  font-family: "Georgia", serif;
+  font-size: 30px;
+  font-weight: 900;
+  color: var(--text-heading);
+}
+.mp-champion-name.mb {
+  margin-bottom: 24px;
+}
+.mp-empty-title {
+  font-family: "Georgia", serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-heading);
+  margin-bottom: 8px;
+}
+.mp-empty-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* ─── Archive ─────────────────────────────────────────────────────────────── */
+.mp-archive-section {
+  padding: 0 16px;
+}
+.mp-archive-section.pb-nav {
+  padding-bottom: 100px;
+}
+.mp-archive-label {
+  font-family: "Montserrat", sans-serif;
+  font-size: 9px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin: 24px 0 12px;
+}
+.mp-archive-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.mp-archive-card:hover {
+  border-color: rgba(255, 255, 255, 0.6);
+}
+.mp-archive-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 3px;
+}
+.mp-archive-meta {
+  font-family: "Montserrat", sans-serif;
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+}
+.mp-archive-header {
+  padding: 16px 16px 0;
+}
+.mp-archive-kicker {
+  font-family: "Montserrat", sans-serif;
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.mp-archive-title {
+  font-family: "Georgia", serif;
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--text-heading);
+  margin-bottom: 12px;
+}
+
+/* ─── Dispute / modal ─────────────────────────────────────────────────────── */
+.mp-dispute-banner {
+  background: var(--danger-faint);
+  border: 1px solid rgba(179, 38, 30, 0.3);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.mp-dispute-title {
+  font-family: "Montserrat", sans-serif;
+  font-size: 10px;
+  color: var(--danger);
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+.mp-dispute-section-label {
+  font-family: "Montserrat", sans-serif;
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--danger);
+  margin-bottom: 8px;
+}
+
+.mp-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay);
+  z-index: 300;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.mp-modal {
+  background: var(--bg-white);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px 8px 0 0;
+  padding: 24px;
+  width: 100%;
+  max-width: 480px;
+  box-shadow: var(--shadow-modal);
+}
+.mp-modal-title {
+  font-family: "Montserrat", sans-serif;
+  font-size: 9px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--accent-text);
+  margin-bottom: 12px;
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20%,
+  60% {
+    transform: translateX(-6px);
+  }
+  40%,
+  80% {
+    transform: translateX(6px);
+  }
+}
+.shake {
+  animation: shake 0.4s ease;
+}
+
+@media (max-width: 400px) {
+  .mp-team-grid {
+    grid-template-columns: 1fr;
+  }
+  .mp-section-title {
+    font-size: 22px;
+  }
+  .sc-hole-btn {
+    font-size: 10px;
+    padding: 8px 2px;
+  }
+}
