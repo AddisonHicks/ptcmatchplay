@@ -4,7 +4,7 @@ import { Toast } from "./Toast.jsx";
 import { ScorecardScreen } from "./ScorecardScreen.jsx";
 import BracketView from "./BracketView.jsx";
 import { tournamentStyleOf, styleLabel, matchPlayedLabel, matchActivityLabel, nowIso, waitingForTeamId, pendingValidationLabel } from "../lib/format.js";
-import { computeGroupStats, sortByRecord, submissionsMatch, groupAdvancementNotes, matchCloseStr } from "../lib/engine.js";
+import { computeGroupStats, sortByRecord, submissionsMatch, groupAdvancementNotes } from "../lib/engine.js";
 
 function PublicMatchesTab({ tournament, onOpenMatch }) {
   function getTeam(id) { return tournament.teams.find(t => t.id === id); }
@@ -36,12 +36,7 @@ function PublicMatchesTab({ tournament, onOpenMatch }) {
     if (m.status === "pending_validation") return null;
     if (m.status === "closed") {
       const w = m.result === "A" ? getTeam(m.teamA) : m.result === "B" ? getTeam(m.teamB) : null;
-      const score = matchCloseStr(m);
-      return (
-        <span className="badge badge-done">
-          {w ? `${w.name}${score ? ` ${score}` : ""}` : "Halve"} ✓
-        </span>
-      );
+      return <span className="badge badge-done">{w ? w.name : "Halve"} ✓</span>;
     }
     return <span className="badge badge-pending">Enter →</span>;
   }
@@ -58,7 +53,7 @@ function PublicMatchesTab({ tournament, onOpenMatch }) {
     return (
       <div className={`mp-match-row-item${statusCls}`} onClick={() => onOpenMatch(m.id)}>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-8">
+          <div className="mp-match-teams">
             <div className={`mp-match-name${m.status === "closed" && m.result === "A" ? " is-winner" : ""}`}>{tA?.name}</div>
             <div className="mp-match-vs">vs</div>
             <div className={`mp-match-name right${m.status === "closed" && m.result === "B" ? " is-winner" : ""}`}>
@@ -71,7 +66,7 @@ function PublicMatchesTab({ tournament, onOpenMatch }) {
             <div className="mp-match-waiting">{pendingValidationLabel(m, waitingName)}</div>
           )}
         </div>
-        {badge && <div className="ml-6 shrink-0">{badge}</div>}
+        {badge && <div className="mp-match-badge">{badge}</div>}
       </div>
     );
   }

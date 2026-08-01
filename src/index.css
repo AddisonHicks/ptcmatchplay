@@ -1675,7 +1675,7 @@ button {
 }
 .mp-match-row-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   padding: 10px 12px;
   background: var(--bg-card);
@@ -1695,11 +1695,21 @@ button {
 .mp-match-row-item.is-disputed {
   border-left-color: var(--danger);
 }
+.mp-match-teams {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
 .mp-match-name {
-  flex: 1;
+  flex: 1 1 0;
+  min-width: 0;
   font-size: 13px;
   font-weight: 600;
   color: var(--text-heading);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .mp-match-name.is-winner {
   color: var(--accent-text);
@@ -1728,13 +1738,30 @@ button {
   line-height: 1.35;
 }
 .mp-match-vs {
+  flex-shrink: 0;
+  padding-top: 1px;
   font-family: "Montserrat", sans-serif;
   font-size: 10px;
   color: var(--text-muted);
+  line-height: 1.35;
 }
 .mp-match-bye {
   color: var(--text-muted);
   font-style: italic;
+}
+.mp-match-badge {
+  flex: 0 1 auto;
+  max-width: 42%;
+  margin-top: 1px;
+}
+.mp-match-badge .badge {
+  display: inline-block;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.35;
+  text-align: center;
 }
 
 .mp-bracket-card {
