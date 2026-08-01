@@ -4,7 +4,7 @@ import { Toast } from "./Toast.jsx";
 import { ScorecardScreen } from "./ScorecardScreen.jsx";
 import BracketView from "./BracketView.jsx";
 import { tournamentStyleOf, styleLabel, matchPlayedLabel, matchActivityLabel, nowIso, waitingForTeamId, pendingValidationLabel } from "../lib/format.js";
-import { computeGroupStats, sortByRecord, submissionsMatch, groupAdvancementNotes } from "../lib/engine.js";
+import { computeGroupStats, sortByRecord, submissionsMatch, groupAdvancementNotes, matchCloseStr } from "../lib/engine.js";
 
 function PublicMatchesTab({ tournament, onOpenMatch }) {
   function getTeam(id) { return tournament.teams.find(t => t.id === id); }
@@ -36,7 +36,12 @@ function PublicMatchesTab({ tournament, onOpenMatch }) {
     if (m.status === "pending_validation") return null;
     if (m.status === "closed") {
       const w = m.result === "A" ? getTeam(m.teamA) : m.result === "B" ? getTeam(m.teamB) : null;
-      return <span className="badge badge-done">{w ? `${w.name.split(" ")[0]} ${m.closeStr}` : "Halve"} ✓</span>;
+      const score = matchCloseStr(m);
+      return (
+        <span className="badge badge-done">
+          {w ? `${w.name}${score ? ` ${score}` : ""}` : "Halve"} ✓
+        </span>
+      );
     }
     return <span className="badge badge-pending">Enter →</span>;
   }
