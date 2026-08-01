@@ -2,8 +2,9 @@ import { useState, useEffect, useRef } from "react";
 import { BrandMark } from "./BrandMark.jsx";
 import { Toast } from "./Toast.jsx";
 import { ScorecardScreen } from "./ScorecardScreen.jsx";
-import { tournamentStyleOf, styleLabel, matchPlayedLabel, matchActivityLabel, nowIso, bracketRoundLabel } from "../lib/format.js";
-import { computeGroupStats, sortByRecord, submissionsMatch } from "../lib/engine.js";
+import BracketView from "./BracketView.jsx";
+import { tournamentStyleOf, styleLabel, matchPlayedLabel, matchActivityLabel, nowIso, waitingForTeamId, pendingValidationLabel } from "../lib/format.js";
+import { computeGroupStats, sortByRecord, submissionsMatch, groupAdvancementNotes } from "../lib/engine.js";
 
 function PublicMatchesTab({ tournament, onOpenMatch }) {
   function getTeam(id) { return tournament.teams.find(t => t.id === id); }
@@ -32,7 +33,7 @@ function PublicMatchesTab({ tournament, onOpenMatch }) {
 
   function statusBadge(m) {
     if (m.status === "disputed") return <span className="badge badge-disputed">⚠ Disputed</span>;
-    if (m.status === "pending_validation") return <span className="badge badge-validation">Pending Validation</span>;
+    if (m.status === "pending_validation") return null;
     if (m.status === "closed") {
       const w = m.result === "A" ? getTeam(m.teamA) : m.result === "B" ? getTeam(m.teamB) : null;
       return <span className="badge badge-done">{w ? `${w.name.split(" ")[0]} ${m.closeStr}` : "Halve"} ✓</span>;
@@ -46,6 +47,9 @@ function PublicMatchesTab({ tournament, onOpenMatch }) {
     const statusCls = m.status === "closed" ? " is-closed" : m.status === "disputed" ? " is-disputed" : "";
     const activity = matchActivityLabel(m);
     const played = matchPlayedLabel(m);
+    const waitingId = waitingForTeamId(m);
+    const waitingName = waitingId ? getTeam(waitingId)?.name : null;
+    const badge = statusBadge(m);
     return (
       <div className={`mp-match-row-item${statusCls}`} onClick={() => onOpenMatch(m.id)}>
         <div className="flex-1 min-w-0">
@@ -58,8 +62,11 @@ function PublicMatchesTab({ tournament, onOpenMatch }) {
           </div>
           {played && <div className="mp-match-time">{played}</div>}
           {activity && <div className="mp-match-time">{activity}</div>}
+          {m.status === "pending_validation" && (
+            <div className="mp-match-waiting">{pendingValidationLabel(m, waitingName)}</div>
+          )}
         </div>
-        <div className="ml-6 shrink-0">{statusBadge(m)}</div>
+        {badge && <div className="ml-6 shrink-0">{badge}</div>}
       </div>
     );
   }
@@ -242,6 +249,7 @@ function PublicStandingsTab({ tournament }) {
         const groupMatches=matches.filter(m=>m.groupId===g.id&&m.groupPhase&&!m.isBye);
         const overall=computeGroupStats(teamIds,groupMatches);
         const sortedTeams=sortByRecord(teamIds,overall).map(id=>teams.find(t=>t.id===id)).filter(Boolean);
+        const tieNotes = groupAdvancementNotes(g, teamIds, teams, groupMatches);
         return (
           <div key={g.id} className="mp-card">
             <div className="flex items-center justify-between mb-14">
@@ -250,29 +258,47 @@ function PublicStandingsTab({ tournament }) {
                 {g.status==="done"?"Done":`R${g.round}`}
               </span>
             </div>
-            <table className="mp-table">
+            <table className="mp-table mp-standings-table">
               <thead>
-                <tr>{["","W","L","H","+Margin"].map(h=>(
-                  <th key={h} className={`mp-th${h===""?"":" center"}`}>{h}</th>
-                ))}</tr>
+                <tr>
+                  <th className="mp-th"></th>
+                  <th className="mp-th center">W</th>
+                  <th className="mp-th center">L</th>
+                  <th className="mp-th center">H</th>
+                  <th className="mp-th center mp-th-pts">Pts</th>
+                  <th className="mp-th center mp-th-margin">+Margin</th>
+                </tr>
               </thead>
               <tbody>
                 {sortedTeams.map(team=>{
                   const r=overall[team.id];
                   const isWinner=g.winnerIds?.includes(team.id)||team.id===g.winnerId;
                   const isElim=team.status==="eliminated";
+                  const played = (r.w + r.l + r.h) > 0;
                   return (
                     <tr key={team.id}>
                       <td className={`mp-td${isWinner?" is-winner":isElim?" is-elim":""}`}>{team.name}</td>
                       {["w","l","h"].map(k=>(
                         <td key={k} className={`mp-td center${k==="w"&&r.w>0?" is-win-stat":k==="l"&&r.l>0?" is-loss-stat":""}`}>{r[k]}</td>
                       ))}
-                      <td className={`mp-td center${r.margin>0?" is-margin":""}`}>{r.margin>0?`+${r.margin}`:r.margin===0&&r.w===0?"—":r.margin}</td>
+                      <td className={`mp-td center mp-td-pts${played?" is-pts":""}`}>
+                        {played ? r.pts : "—"}
+                      </td>
+                      <td className={`mp-td center mp-td-margin${played?" is-margin":""}`}>
+                        {!played ? "—" : r.margin > 0 ? `+${r.margin}` : r.margin}
+                      </td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
+            {tieNotes.length > 0 && (
+              <div className="mp-standings-notes">
+                {tieNotes.map(note => (
+                  <div key={note} className="mp-standings-note">{note}</div>
+                ))}
+              </div>
+            )}
           </div>
         );
       })}
@@ -280,179 +306,8 @@ function PublicStandingsTab({ tournament }) {
   );
 }
 
-function buildBracketColumns(bracket) {
-  const r1 = bracket
-    .filter(m => m.bracketRound === 1)
-    .sort((a, b) => a.slot - b.slot);
-  if (!r1.length) return [];
-
-  const r1Count = r1.length;
-  const totalRounds = Math.round(Math.log2(r1Count)) + 1;
-  const columns = [];
-
-  for (let r = 1; r <= totalRounds; r++) {
-    const expected = r1Count / Math.pow(2, r - 1);
-    const existing = bracket
-      .filter(m => m.bracketRound === r)
-      .sort((a, b) => a.slot - b.slot);
-    const slots = Array.from({ length: expected }, (_, s) =>
-      existing.find(m => m.slot === s) || null
-    );
-    columns.push({ round: r, matches: slots });
-  }
-  return columns;
-}
-
 function PublicBracketTab({ tournament, onOpenMatch }) {
-  function getTeam(id) { return id ? tournament.teams.find(t => t.id === id) : null; }
-  const { bracket, groups, phase } = tournament;
-
-  if ((phase !== "bracket" && phase !== "complete") || !bracket.length) {
-    if (tournamentStyleOf(tournament) === "single_elim") {
-      return (
-        <div className="mp-page">
-          <div className="mp-section-eyebrow">Knockout</div>
-          <div className="mp-section-title">Bracket</div>
-          <div className="mp-card ta-center pad-xl">
-            <div className="font-meta t-muted">Bracket will appear once the tournament starts.</div>
-          </div>
-        </div>
-      );
-    }
-    const done = (groups || []).filter(g => g.status === "done").length;
-    return (
-      <div className="mp-page">
-        <div className="mp-section-eyebrow">Knockout</div>
-        <div className="mp-section-title">Bracket</div>
-        <div className="mp-card ta-center pad-xl">
-          <div className="font-meta t-muted mb-12">{done}/{(groups || []).length} groups complete</div>
-          <div className="font-meta-sm t-faint mb-16">Bracket unlocks when every group finishes.</div>
-          {(groups || []).map(g => (
-            <div key={g.id} className="mp-list-row">
-              <span className="font-meta-sm t-body">{g.name}</span>
-              {g.status === "done"
-                ? <span className="badge badge-advanced">{getTeam(g.winnerId)?.name}</span>
-                : <span className="badge badge-active">Playing</span>
-              }
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  const columns = buildBracketColumns(bracket);
-  const champion = phase === "complete" ? getTeam(tournament.championId) : null;
-
-  function MatchCell({ match }) {
-    if (!match) {
-      return (
-        <div className="mp-viz-match is-placeholder">
-          <div className="mp-viz-side"><span className="mp-viz-name is-empty">TBD</span></div>
-          <div className="mp-viz-side"><span className="mp-viz-name is-empty">TBD</span></div>
-        </div>
-      );
-    }
-
-    const tA = getTeam(match.teamA);
-    const tB = match.teamB ? getTeam(match.teamB) : null;
-    const clickable = !match.isBye;
-    const closed = match.status === "closed";
-
-    return (
-      <button
-        type="button"
-        className={[
-          "mp-viz-match",
-          match.status === "disputed" ? "is-disputed" : "",
-          match.isBye ? "is-bye" : "",
-          clickable ? "is-clickable" : "",
-        ].filter(Boolean).join(" ")}
-        disabled={!clickable}
-        onClick={() => clickable && onOpenMatch(match.id)}
-      >
-        {[
-          { side: "A", team: tA },
-          { side: "B", team: tB },
-        ].map(({ side, team }) => {
-          const won = closed && match.result === side;
-          const lost = closed && match.result && match.result !== "H" && match.result !== side;
-          return (
-            <div
-              key={side}
-              className={[
-                "mp-viz-side",
-                won ? "is-winner" : "",
-                lost ? "is-loser" : "",
-              ].filter(Boolean).join(" ")}
-            >
-              <span className={`mp-viz-name${!team && !match.isBye ? " is-empty" : ""}`}>
-                {team?.name || (match.isBye && side === "B" ? "BYE" : "TBD")}
-              </span>
-              {won && match.closeStr && match.closeStr !== "bye" && (
-                <span className="mp-viz-score">{match.closeStr}</span>
-              )}
-              {!closed && !match.isBye && team && side === "A" && match.status === "pending" && (
-                <span className="mp-viz-enter">Enter</span>
-              )}
-              {match.status === "disputed" && side === "A" && (
-                <span className="mp-viz-score is-danger">Dispute</span>
-              )}
-            </div>
-          );
-        })}
-      </button>
-    );
-  }
-
-  return (
-    <div className="mp-page pb-100">
-      {champion && (
-        <div className="mp-champion">
-          <div className="mp-champion-label">Champion</div>
-          <div className="mp-champion-name mb">{champion.name}</div>
-        </div>
-      )}
-      <div className="mp-section-eyebrow">Knockout Stage</div>
-      <div className="mp-section-title">Bracket</div>
-      <div className="font-meta-sm t-faint mb-14">Swipe sideways to explore the full tree</div>
-
-      <div className="mp-viz-scroll">
-        <div
-          className="mp-viz"
-          style={{ "--r1-count": columns[0]?.matches.length || 1 }}
-        >
-          {columns.map((col, colIdx) => (
-            <div key={col.round} className="mp-viz-col">
-              <div className="mp-viz-col-label">
-                {bracketRoundLabel(col.matches.length)}
-              </div>
-              <div className="mp-viz-col-body">
-                {col.matches.map((match, i) => (
-                  <div
-                    key={match?.id || `r${col.round}-s${i}`}
-                    className="mp-viz-slot"
-                    style={{ flex: Math.pow(2, colIdx) }}
-                  >
-                    <MatchCell match={match} />
-                    {colIdx > 0 && (
-                      <span className="mp-viz-in" aria-hidden="true" />
-                    )}
-                    {colIdx < columns.length - 1 && (
-                      <>
-                        <span className="mp-viz-stub" aria-hidden="true" />
-                        <span className="mp-viz-elbow" aria-hidden="true" />
-                      </>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
+  return <BracketView tournament={tournament} onOpenMatch={onOpenMatch} mode="public" />;
 }
 
 function PublicTournamentView({ tournament, onSaveMatch }) {

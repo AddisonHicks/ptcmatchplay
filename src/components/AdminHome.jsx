@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Toast } from "./Toast.jsx";
+import BracketView from "./BracketView.jsx";
 import { initTournament, submissionsMatch } from "../lib/engine.js";
 import {
   nowIso,
@@ -7,6 +8,8 @@ import {
   formatMatchTime,
   matchPlayedLabel,
   matchActivityLabel,
+  waitingForTeamId,
+  pendingValidationLabel,
   shuffle,
   minGroupsForTeams,
   maxGroupsForTeams,
@@ -21,6 +24,7 @@ import {
   nearestEvenPowerOfTwo,
   tournamentStyleOf,
   styleLabel,
+  bracketRoundLabel,
 } from "../lib/format.js";
 
 function AdminSetupForm({ onCreated, onCancel }) {
@@ -431,7 +435,12 @@ function OverrideModal({ match, tournament, onSave, onClose }) {
   const tA=tournament.teams.find(t=>t.id===match.teamA);
   const tB=match.teamB?tournament.teams.find(t=>t.id===match.teamB):null;
   const [result,setResult]=useState(match.result||"A");
-  const [closeStr,setCloseStr]=useState(match.closeStr||"");
+  const initialClose =
+    match.closeStr ||
+    match.submissionA?.closeStr ||
+    match.submissionB?.closeStr ||
+    "";
+  const [closeStr,setCloseStr]=useState(initialClose);
   const [playedOn,setPlayedOn]=useState(match.playedOn||localDateInputValue());
   const isHalve = result === "H";
   return (
@@ -448,8 +457,8 @@ function OverrideModal({ match, tournament, onSave, onClose }) {
         </div>
         {!isHalve && (
           <div className="mb-16">
-            <div className="font-label t-muted mb-6">Score (e.g. 3&2, 1 UP)</div>
-            <input value={closeStr} onChange={e=>setCloseStr(e.target.value)} placeholder="e.g. 3&2" className="mp-input mb-0"/>
+            <div className="font-label t-muted mb-6">Score (e.g. 3&2, 1 UP, or 3)</div>
+            <input value={closeStr} onChange={e=>setCloseStr(e.target.value)} placeholder="e.g. 3&2 or 3" className="mp-input mb-0"/>
           </div>
         )}
         <div className="mb-16">
@@ -469,7 +478,7 @@ function OverrideModal({ match, tournament, onSave, onClose }) {
             onSave(match.id,{
               ...match,
               result,
-              closeStr: isHalve ? "Halved" : closeStr,
+              closeStr: isHalve ? "Halved" : closeStr.trim(),
               status:"closed",
               closedAt:ts,
               overriddenAt:ts,
@@ -493,6 +502,38 @@ function AdminTournamentDetail({ tournament, onSaveMatch, onArchive, onBack }) {
   const allMatches=[...tournament.matches,...tournament.bracket];
   const disputed=allMatches.filter(m=>m.status==="disputed");
   const awaitingValidation=allMatches.filter(m=>m.status==="pending_validation");
+  const groups = tournament.groups || [];
+  const hasPools = tournamentStyleOf(tournament) === "pool_bracket" && groups.length > 0;
+  const bracket = tournament.bracket || [];
+  const bracketRounds = [...new Set(bracket.map(m => m.bracketRound))].sort((a, b) => a - b);
+  const hasBracketList = bracket.some(m => !m.isBye);
+
+  const defaultExpanded = (() => {
+    const ids = [];
+    if (hasPools && tournament.phase === "group") {
+      const playing = groups.filter(g => g.status !== "done");
+      (playing.length ? playing : groups.slice(0, 1)).forEach(g => ids.push(g.id));
+    }
+    if (hasBracketList && (!hasPools || tournament.phase !== "group")) {
+      let openedRound = false;
+      for (const r of bracketRounds) {
+        const hasOpen = bracket.some(m => m.bracketRound === r && !m.isBye && m.status !== "closed");
+        if (hasOpen) {
+          ids.push(`__round_${r}`);
+          openedRound = true;
+        }
+      }
+      if (!openedRound && bracketRounds.length) {
+        ids.push(`__round_${bracketRounds[bracketRounds.length - 1]}`);
+      }
+    }
+    return ids;
+  })();
+  const [expandedIds, setExpandedIds] = useState(defaultExpanded);
+
+  function toggleSection(id) {
+    setExpandedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  }
 
   function forceApproveFromSubmission(m) {
     const sub = m.submissionA || m.submissionB;
@@ -508,6 +549,132 @@ function AdminTournamentDetail({ tournament, onSaveMatch, onArchive, onBack }) {
     else showToast("Result overridden ✓");
   }
 
+  function AdminMatchRow({ m }) {
+    const tA = tournament.teams.find(t => t.id === m.teamA);
+    const tB = m.teamB ? tournament.teams.find(t => t.id === m.teamB) : null;
+    const activity = matchActivityLabel(m);
+    const played = matchPlayedLabel(m);
+    const waitingId = waitingForTeamId(m);
+    const waitingName = waitingId
+      ? tournament.teams.find(t => t.id === waitingId)?.name
+      : null;
+    return (
+      <div className={`mp-admin-row${m.status === "closed" ? " is-closed" : m.status === "disputed" ? " is-disputed" : ""}`}>
+        <div className="mp-admin-row-main">
+          <div className="mp-admin-row-teams">
+            <div className="mp-match-name">{tA?.name || "TBD"}</div>
+            <div className="font-meta t-muted">vs</div>
+            <div className="mp-match-name right">{tB?.name || "TBD"}</div>
+          </div>
+          {played && <div className="mp-match-time">{played}</div>}
+          {activity && <div className="mp-match-time">{activity}</div>}
+          {m.status === "pending_validation" && (
+            <div className="mp-match-waiting">{pendingValidationLabel(m, waitingName)}</div>
+          )}
+        </div>
+        <div className="mp-admin-row-actions">
+          {m.status === "closed" && <span className="badge badge-done">{m.closeStr} ✓</span>}
+          {m.status === "disputed" && <span className="badge badge-disputed">Disputed</span>}
+          {m.status === "pending" && <span className="badge badge-pending">Pending</span>}
+          {m.status === "pending_validation" && (
+            <button type="button" onClick={() => setOverrideMatch(forceApproveFromSubmission(m))} className="mp-edit-btn fw-700">
+              Force Approve
+            </button>
+          )}
+          <button type="button" onClick={() => setOverrideMatch(m)} className="mp-edit-btn">Edit</button>
+        </div>
+      </div>
+    );
+  }
+
+  function AdminAccordion({ id, title, meta, badge, children }) {
+    const open = expandedIds.includes(id);
+    return (
+      <div className={`mp-match-accordion${open ? " is-open" : ""}`}>
+        <button
+          type="button"
+          className="mp-match-accordion-trigger"
+          aria-expanded={open}
+          onClick={() => toggleSection(id)}
+        >
+          <div className="flex-1 min-w-0 ta-left">
+            <div className="mp-match-accordion-title">{title}</div>
+            {meta && <div className="mp-match-accordion-meta">{meta}</div>}
+          </div>
+          <div className="flex items-center gap-8 shrink-0">
+            {badge}
+            <span className="mp-match-accordion-chevron" aria-hidden="true" />
+          </div>
+        </button>
+        {open && <div className="mp-match-accordion-body">{children}</div>}
+      </div>
+    );
+  }
+
+  function AdminGroupAccordion({ g }) {
+    const gMatches = tournament.matches.filter(m => m.groupId === g.id && !m.isBye);
+    if (!gMatches.length) return null;
+    const closedCount = gMatches.filter(m => m.status === "closed").length;
+    const pendingCount = gMatches.filter(m => m.status !== "closed").length;
+    const eliminatedFlags = g.eliminatedWithMatchesRemaining || [];
+    return (
+      <AdminAccordion
+        id={g.id}
+        title={g.name}
+        meta={g.status === "done" ? "Complete" : pendingCount ? `${pendingCount} open` : "In progress"}
+        badge={
+          <>
+            <span className="font-label t-faint">{closedCount}/{gMatches.length}</span>
+            <span className={`badge ${g.status === "done" ? "badge-advanced" : "badge-active"}`}>
+              {g.status === "done" ? "Done" : "Playing"}
+            </span>
+          </>
+        }
+      >
+        {eliminatedFlags.length > 0 && (
+          <div className="mp-callout">
+            <div className="font-label t-accent mb-6">Eliminated — Coordinate Remaining Match</div>
+            {eliminatedFlags.map(id => {
+              const t = tournament.teams.find(t2 => t2.id === id);
+              return (
+                <div key={id} className="font-meta-sm t-muted">
+                  {t?.name} is 0-2 and eliminated but has matches remaining
+                </div>
+              );
+            })}
+          </div>
+        )}
+        {gMatches.map(m => <AdminMatchRow key={m.id} m={m} />)}
+      </AdminAccordion>
+    );
+  }
+
+  function AdminRoundAccordion({ round }) {
+    const roundAll = bracket.filter(m => m.bracketRound === round);
+    const roundMatches = roundAll.filter(m => !m.isBye).sort((a, b) => a.slot - b.slot);
+    if (!roundMatches.length) return null;
+    const closedCount = roundMatches.filter(m => m.status === "closed").length;
+    const pendingCount = roundMatches.filter(m => m.status !== "closed").length;
+    const label = bracketRoundLabel(roundAll.length);
+    return (
+      <AdminAccordion
+        id={`__round_${round}`}
+        title={label}
+        meta={pendingCount ? `${pendingCount} open` : "Complete"}
+        badge={
+          <>
+            <span className="font-label t-faint">{closedCount}/{roundMatches.length}</span>
+            <span className={`badge ${pendingCount ? "badge-active" : "badge-advanced"}`}>
+              {pendingCount ? "Live" : "Done"}
+            </span>
+          </>
+        }
+      >
+        {roundMatches.map(m => <AdminMatchRow key={m.id} m={m} />)}
+      </AdminAccordion>
+    );
+  }
+
   return (
     <div>
       {overrideMatch&&<OverrideModal match={overrideMatch} tournament={tournament} onSave={handleOverrideSave} onClose={()=>setOverrideMatch(null)}/>}
@@ -520,6 +687,7 @@ function AdminTournamentDetail({ tournament, onSaveMatch, onArchive, onBack }) {
         <div className="mp-underline-tabs">
           {[
             {id:"matches",label: disputed.length ? `Matches (${disputed.length})` : "Matches"},
+            {id:"bracket",label:"Bracket"},
             {id:"info",label:"Info"},
           ].map(item=>(
             <button key={item.id} onClick={()=>setTab(item.id)} className={`mp-underline-tab pad-sm${tab===item.id?" is-active":""}`}>
@@ -535,27 +703,39 @@ function AdminTournamentDetail({ tournament, onSaveMatch, onArchive, onBack }) {
             <div className="mb-16">
               {awaitingValidation.length>0&&(
                 <div className="mb-12">
-                  <div className="font-label t-accent mb-8">⏳ Awaiting Second Submission</div>
+                  <div className="font-label t-accent mb-8">Awaiting Second Submission</div>
                   {awaitingValidation.map(m=>{
                     const tA=tournament.teams.find(t=>t.id===m.teamA),tB=m.teamB?tournament.teams.find(t=>t.id===m.teamB):null;
                     const sub=m.submissionA||m.submissionB;
                     const submittedSide=m.submissionA?tA:tB;
                     const waitingSide=m.submissionA?tB:tA;
+                    const winnerLabel = sub?.result==="A"?tA?.name:sub?.result==="B"?tB?.name:"Halve";
                     return (
-                      <div key={m.id} className="mp-callout flex items-center gap-10">
-                        <div className="flex-1">
-                          <div className="t-heading fw-600 mb-4">{tA?.name} vs {tB?.name}</div>
-                          <div className="font-meta-sm t-muted mb-2">✓ {submittedSide?.name}: {sub?.result==="A"?tA?.name:sub?.result==="B"?tB?.name:"Halve"} {sub?.closeStr}{sub?.submittedAt ? ` · ${formatMatchTime(sub.submittedAt)}` : ""}</div>
-                          {matchPlayedLabel(m) && <div className="font-meta-sm t-faint mb-2">{matchPlayedLabel(m)}</div>}
-                          <div className="font-meta t-faint">⏳ Waiting on {waitingSide?.name}</div>
+                      <div key={m.id} className="mp-admin-alert">
+                        <div className="mp-admin-alert-body">
+                          <div className="mp-admin-alert-title">{tA?.name} vs {tB?.name}</div>
+                          <div className="mp-admin-alert-line">
+                            Submitted · {submittedSide?.name}: {winnerLabel}{sub?.closeStr ? ` ${sub.closeStr}` : ""}
+                            {sub?.submittedAt ? ` · ${formatMatchTime(sub.submittedAt)}` : ""}
+                          </div>
+                          {matchPlayedLabel(m) && (
+                            <div className="mp-admin-alert-line is-faint">{matchPlayedLabel(m)}</div>
+                          )}
+                          <div className="mp-admin-alert-line is-wait">Waiting on {waitingSide?.name}</div>
                         </div>
-                        <button onClick={()=>setOverrideMatch(forceApproveFromSubmission(m))} className="mp-btn mp-btn-primary shrink-0">Force Approve</button>
+                        <button
+                          type="button"
+                          onClick={()=>setOverrideMatch(forceApproveFromSubmission(m))}
+                          className="mp-admin-alert-btn"
+                        >
+                          Force Approve
+                        </button>
                       </div>
                     );
                   })}
                 </div>
               )}
-              {disputed.length>0&&<div className="mp-dispute-section-label">⚠ Disputed Results</div>}
+              {disputed.length>0&&<div className="mp-dispute-section-label">Disputed Results</div>}
               {disputed.map(m=>{
                 const tA=tournament.teams.find(t=>t.id===m.teamA),tB=m.teamB?tournament.teams.find(t=>t.id===m.teamB):null;
                 return (
@@ -571,86 +751,48 @@ function AdminTournamentDetail({ tournament, onSaveMatch, onArchive, onBack }) {
               })}
             </div>
           )}
-          {(tournament.groups||[]).map(g=>{
-            const gMatches=tournament.matches.filter(m=>m.groupId===g.id&&!m.isBye);
-            const eliminatedFlags=g.eliminatedWithMatchesRemaining||[];
-            if(!gMatches.length)return null;
-            const closedCount=gMatches.filter(m=>m.status==="closed").length;
-            return (
-              <div key={g.id} className="mp-card">
-                <div className="flex items-center justify-between mb-12">
-                  <div className="mp-card-title mb-0">{g.name}</div>
-                  <div className="flex items-center gap-6">
-                    <span className="font-label t-faint">{closedCount}/{gMatches.length}</span>
-                    <span className={`badge ${g.status==="done"?"badge-advanced":"badge-active"}`}>{g.status==="done"?"Done":"Playing"}</span>
-                  </div>
-                </div>
-                {eliminatedFlags.length>0&&(
-                  <div className="mp-callout">
-                    <div className="font-label t-accent mb-6">⚠ Eliminated — Coordinate Remaining Match</div>
-                    {eliminatedFlags.map(id=>{const t=tournament.teams.find(t2=>t2.id===id);return <div key={id} className="font-meta-sm t-muted">{t?.name} is 0-2 and eliminated but has matches remaining</div>;})}
-                  </div>
-                )}
-                                {gMatches.map(m=>{
-                  const tA=tournament.teams.find(t=>t.id===m.teamA),tB=m.teamB?tournament.teams.find(t=>t.id===m.teamB):null;
-                  const activity = matchActivityLabel(m);
-                  const played = matchPlayedLabel(m);
-                  return (
-                    <div key={m.id} className={`mp-admin-row${m.status==="closed"?" is-closed":m.status==="disputed"?" is-disputed":""}`}>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-8">
-                          <div className="mp-match-name">{tA?.name}</div>
-                          <div className="font-meta t-muted">vs</div>
-                          <div className="mp-match-name right">{tB?.name}</div>
-                        </div>
-                        {played && <div className="mp-match-time">{played}</div>}
-                        {activity && <div className="mp-match-time">{activity}</div>}
-                      </div>
-                      <div className="flex items-center gap-6 ml-6">
-                        {m.status==="closed"&&<span className="badge badge-done">{m.closeStr} ✓</span>}
-                        {m.status==="disputed"&&<span className="badge badge-disputed">⚠</span>}
-                        {m.status==="pending_validation"&&<span className="badge badge-validation">Validating</span>}
-                        {m.status==="pending"&&<span className="badge badge-pending">Pending</span>}
-                        {m.status==="pending_validation"&&<button onClick={()=>setOverrideMatch(forceApproveFromSubmission(m))} className="mp-edit-btn fw-700">Force Approve</button>}
-                        <button onClick={()=>setOverrideMatch(m)} className="mp-edit-btn">Edit</button>
-                      </div>
-                    </div>
-                  );
-                })}
+
+          {hasPools && (
+            <>
+              <div className="mp-section-eyebrow">
+                {tournament.phase === "bracket" || tournament.phase === "complete" ? "Pool Play · History" : "Pool Play"}
               </div>
-            );
-          })}
-          {tournament.bracket.filter(m=>!m.isBye).length>0&&(
-            <div className="mp-card">
-              <div className="mp-card-title">Bracket Matches</div>
-              {tournament.bracket.filter(m=>!m.isBye).map(m=>{
-                const tA=tournament.teams.find(t=>t.id===m.teamA),tB=m.teamB?tournament.teams.find(t=>t.id===m.teamB):null;
-                const activity = matchActivityLabel(m);
-                const played = matchPlayedLabel(m);
-                return (
-                  <div key={m.id} className={`mp-admin-row${m.status==="closed"?" is-closed":m.status==="disputed"?" is-disputed":""}`}>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-8">
-                        <div className="mp-match-name">{tA?.name||"TBD"}</div>
-                        <div className="font-meta t-muted">vs</div>
-                        <div className="mp-match-name right">{tB?.name||"TBD"}</div>
-                      </div>
-                      {played && <div className="mp-match-time">{played}</div>}
-                      {activity && <div className="mp-match-time">{activity}</div>}
-                    </div>
-                    <div className="flex items-center gap-6 ml-6">
-                      {m.status==="closed"&&<span className="badge badge-done">{m.closeStr} ✓</span>}
-                      {m.status==="disputed"&&<span className="badge badge-disputed">⚠</span>}
-                      {m.status==="pending_validation"&&<span className="badge badge-validation">Validating</span>}
-                      {m.status==="pending"&&<span className="badge badge-pending">Pending</span>}
-                      {m.status==="pending_validation"&&<button onClick={()=>setOverrideMatch(forceApproveFromSubmission(m))} className="mp-edit-btn fw-700">Force Approve</button>}
-                      <button onClick={()=>setOverrideMatch(m)} className="mp-edit-btn">Edit</button>
-                    </div>
-                  </div>
-                );
-              })}
+              <div className="mp-section-title mb-14">Groups</div>
+              {groups.map(g => <AdminGroupAccordion key={g.id} g={g} />)}
+            </>
+          )}
+
+          {hasBracketList && (
+            <>
+              <div className={`mp-section-eyebrow${hasPools ? " mt-8" : ""}`}>Knockout</div>
+              <div className="mp-section-title mb-14">
+                {hasPools ? "Rounds" : "Matches"}
+              </div>
+              {bracketRounds.map(r => <AdminRoundAccordion key={r} round={r} />)}
+            </>
+          )}
+
+          {!hasPools && !hasBracketList && (
+            <div className="mp-card ta-center pad-lg">
+              <div className="font-meta t-muted">No matches yet</div>
             </div>
           )}
+        </div>
+      )}
+
+      {tab==="bracket"&&(
+        <div className="mp-page">
+          <div className="mp-section-eyebrow">Knockout</div>
+          <div className="mp-section-title mb-0">Bracket</div>
+          <BracketView
+            tournament={tournament}
+            mode="admin"
+            compact
+            onOpenMatch={(matchId) => {
+              const m = [...tournament.matches, ...tournament.bracket].find(x => x.id === matchId);
+              if (m && !m.isBye) setOverrideMatch(m);
+            }}
+          />
         </div>
       )}
 

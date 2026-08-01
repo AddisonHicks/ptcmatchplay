@@ -26,31 +26,117 @@ export function computeMatchState(holeResults) {
 
 export function parseMargin(closeStr) {
   if (!closeStr) return 0;
-  if (closeStr === "Halved" || closeStr === "bye") return 0;
-  const ampMatch = closeStr.match(/^(\d+)&/);
+  const s = String(closeStr).trim();
+  if (/^halved$/i.test(s) || /^bye$/i.test(s) || /^as$/i.test(s)) return 0;
+  // "3&2", "3 & 2", "3& 2"
+  const ampMatch = s.match(/^(\d+)\s*&/);
   if (ampMatch) return parseInt(ampMatch[1], 10);
-  const upMatch = closeStr.match(/^(\d+)\s*UP/i);
+  // "1 UP", "2 up", "1-up"
+  const upMatch = s.match(/^(\d+)\s*-?\s*UP\b/i);
   if (upMatch) return parseInt(upMatch[1], 10);
+  // Bare margin from admin override: "3"
+  const bare = s.match(/^(\d+)$/);
+  if (bare) return parseInt(bare[1], 10);
   return 0;
+}
+
+/** Prefer match.closeStr; fall back to either submission if the match score was never copied up. */
+export function matchCloseStr(m) {
+  if (!m) return "";
+  if (m.closeStr) return m.closeStr;
+  return m.submissionA?.closeStr || m.submissionB?.closeStr || "";
 }
 
 export function computeGroupStats(teamIds, groupMatches) {
   const stats = {};
-  teamIds.forEach(id => { stats[id] = { w: 0, l: 0, h: 0, margin: 0 }; });
+  teamIds.forEach(id => { stats[id] = { w: 0, l: 0, h: 0, margin: 0, pts: 0 }; });
   groupMatches.filter(m => m.status === "closed").forEach(m => {
-    const margin = parseMargin(m.closeStr);
-    if (m.isBye) { stats[m.teamA].w++; return; }
-    if (m.result === "A") { stats[m.teamA].w++; stats[m.teamA].margin += margin; if (m.teamB) stats[m.teamB].l++; }
-    else if (m.result === "B") { stats[m.teamA].l++; if (m.teamB) { stats[m.teamB].w++; stats[m.teamB].margin += margin; } }
-    else if (m.result === "H") { stats[m.teamA].h++; if (m.teamB) stats[m.teamB].h++; }
+    const margin = parseMargin(matchCloseStr(m));
+    if (m.isBye) {
+      stats[m.teamA].w++;
+      stats[m.teamA].pts += 3;
+      return;
+    }
+    if (m.result === "A") {
+      stats[m.teamA].w++;
+      stats[m.teamA].pts += 3;
+      stats[m.teamA].margin += margin;
+      if (m.teamB) stats[m.teamB].l++;
+    } else if (m.result === "B") {
+      stats[m.teamA].l++;
+      if (m.teamB) {
+        stats[m.teamB].w++;
+        stats[m.teamB].pts += 3;
+        stats[m.teamB].margin += margin;
+      }
+    } else if (m.result === "H") {
+      stats[m.teamA].h++;
+      stats[m.teamA].pts += 1;
+      if (m.teamB) {
+        stats[m.teamB].h++;
+        stats[m.teamB].pts += 1;
+      }
+    }
   });
   return stats;
 }
 
 export function sortByRecord(teamIds, stats) {
   return [...teamIds].sort((a, b) =>
-    (stats[b].w - stats[a].w) || (stats[a].l - stats[b].l) || (stats[b].margin - stats[a].margin)
+    (stats[b].pts - stats[a].pts) ||
+    (stats[b].w - stats[a].w) ||
+    (stats[a].l - stats[b].l) ||
+    (stats[b].margin - stats[a].margin)
   );
+}
+
+/**
+ * When a finished group has teams level on points across the cut line,
+ * explain who advanced via head-to-head (or margin if H2H was level).
+ */
+export function groupAdvancementNotes(group, teamIds, teams, groupMatches) {
+  if (group?.status !== "done") return [];
+  const advanced = new Set(group.winnerIds?.length ? group.winnerIds : (group.winnerId ? [group.winnerId] : []));
+  if (!advanced.size) return [];
+
+  const stats = computeGroupStats(teamIds, groupMatches);
+  const notes = [];
+  const seen = new Set();
+
+  for (const a of teamIds) {
+    for (const b of teamIds) {
+      if (a >= b) continue;
+      const aIn = advanced.has(a);
+      const bIn = advanced.has(b);
+      if (aIn === bIn) continue;
+      if (stats[a].pts !== stats[b].pts) continue;
+
+      const pairKey = `${a}:${b}`;
+      if (seen.has(pairKey)) continue;
+      seen.add(pairKey);
+
+      const advancerId = aIn ? a : b;
+      const otherId = aIn ? b : a;
+      const advancer = teams.find(t => t.id === advancerId);
+      const other = teams.find(t => t.id === otherId);
+      if (!advancer || !other) continue;
+
+      const h2h = headToHeadStats([advancerId, otherId], groupMatches);
+      const h2hDiff =
+        (h2h[advancerId].pts - h2h[otherId].pts) ||
+        (h2h[advancerId].w - h2h[otherId].w) ||
+        (h2h[otherId].l - h2h[advancerId].l) ||
+        (h2h[advancerId].margin - h2h[otherId].margin);
+
+      if (h2hDiff > 0) {
+        notes.push(`${advancer.name} advanced over ${other.name} on head-to-head`);
+      } else if (stats[advancerId].margin > stats[otherId].margin) {
+        notes.push(`${advancer.name} advanced over ${other.name} on margin`);
+      }
+    }
+  }
+
+  return notes;
 }
 
 export function makeMatch(groupId, round, teamA, teamB, isBye = false) {
@@ -85,14 +171,27 @@ export function generateRoundRobinMatches(groupId, memberIds) {
 
 export function headToHeadStats(teamIds, groupMatches) {
   const stats = {};
-  teamIds.forEach(id => { stats[id] = { w: 0, l: 0, h: 0, margin: 0 }; });
+  teamIds.forEach(id => { stats[id] = { w: 0, l: 0, h: 0, margin: 0, pts: 0 }; });
   groupMatches
     .filter(m => m.status === "closed" && !m.isBye && teamIds.includes(m.teamA) && m.teamB && teamIds.includes(m.teamB))
     .forEach(m => {
-      const margin = parseMargin(m.closeStr);
-      if (m.result === "A") { stats[m.teamA].w++; stats[m.teamA].margin += margin; stats[m.teamB].l++; }
-      else if (m.result === "B") { stats[m.teamB].w++; stats[m.teamB].margin += margin; stats[m.teamA].l++; }
-      else if (m.result === "H") { stats[m.teamA].h++; stats[m.teamB].h++; }
+      const margin = parseMargin(matchCloseStr(m));
+      if (m.result === "A") {
+        stats[m.teamA].w++;
+        stats[m.teamA].pts += 3;
+        stats[m.teamA].margin += margin;
+        stats[m.teamB].l++;
+      } else if (m.result === "B") {
+        stats[m.teamB].w++;
+        stats[m.teamB].pts += 3;
+        stats[m.teamB].margin += margin;
+        stats[m.teamA].l++;
+      } else if (m.result === "H") {
+        stats[m.teamA].h++;
+        stats[m.teamA].pts += 1;
+        stats[m.teamB].h++;
+        stats[m.teamB].pts += 1;
+      }
     });
   return stats;
 }
@@ -100,17 +199,13 @@ export function headToHeadStats(teamIds, groupMatches) {
 export function tiebreakerSort(teamIds, overallStats, groupMatches) {
   const groups = {};
   teamIds.forEach(id => {
-    const key = `${overallStats[id].w}-${overallStats[id].l}`;
+    const key = String(overallStats[id].pts ?? 0);
     if (!groups[key]) groups[key] = [];
     groups[key].push(id);
   });
 
   const result = [];
-  const sortedKeys = Object.keys(groups).sort((a, b) => {
-    const [aw, al] = a.split("-").map(Number);
-    const [bw, bl] = b.split("-").map(Number);
-    return (bw - aw) || (al - bl);
-  });
+  const sortedKeys = Object.keys(groups).sort((a, b) => Number(b) - Number(a));
 
   for (const key of sortedKeys) {
     const tied = groups[key];
@@ -118,6 +213,7 @@ export function tiebreakerSort(teamIds, overallStats, groupMatches) {
 
     const h2h = headToHeadStats(tied, groupMatches);
     const h2hSorted = [...tied].sort((a, b) =>
+      (h2h[b].pts - h2h[a].pts) ||
       (h2h[b].w - h2h[a].w) ||
       (h2h[a].l - h2h[b].l) ||
       (overallStats[b].margin - overallStats[a].margin)
@@ -137,12 +233,29 @@ export function evaluateGroup(group, teamIds, allMatches, advancersPerGroup) {
   }
 
   const stats = {};
-  teamIds.forEach(id => { stats[id] = { w: 0, l: 0, h: 0, margin: 0 }; });
+  teamIds.forEach(id => { stats[id] = { w: 0, l: 0, h: 0, margin: 0, pts: 0 }; });
   groupMatches.filter(m => m.status === "closed" && !m.isBye).forEach(m => {
-    const margin = parseMargin(m.closeStr);
-    if (m.result === "A") { stats[m.teamA].w++; stats[m.teamA].margin += margin; if (m.teamB) stats[m.teamB].l++; }
-    else if (m.result === "B") { stats[m.teamA].l++; if (m.teamB) { stats[m.teamB].w++; stats[m.teamB].margin += margin; } }
-    else if (m.result === "H") { stats[m.teamA].h++; if (m.teamB) stats[m.teamB].h++; }
+    const margin = parseMargin(matchCloseStr(m));
+    if (m.result === "A") {
+      stats[m.teamA].w++;
+      stats[m.teamA].pts += 3;
+      stats[m.teamA].margin += margin;
+      if (m.teamB) stats[m.teamB].l++;
+    } else if (m.result === "B") {
+      stats[m.teamA].l++;
+      if (m.teamB) {
+        stats[m.teamB].w++;
+        stats[m.teamB].pts += 3;
+        stats[m.teamB].margin += margin;
+      }
+    } else if (m.result === "H") {
+      stats[m.teamA].h++;
+      stats[m.teamA].pts += 1;
+      if (m.teamB) {
+        stats[m.teamB].h++;
+        stats[m.teamB].pts += 1;
+      }
+    }
   });
 
   const sorted = tiebreakerSort(teamIds, stats, groupMatches);

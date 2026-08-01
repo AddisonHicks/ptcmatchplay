@@ -26,9 +26,9 @@ export function ScorecardScreen({ tournament, matchId, onBack, onSubmitSide, isA
   function getStatus() {
     if (ms.holesPlayed===0) return { cls:"sc-st-unstarted", label:"Not Started", detail:"Tap each hole to record who won it" };
     if (ms.closed && ms.result==="H") return { cls:"sc-st-halved", label:"Halved", detail:"All square after 18" };
-    if (ms.closed) return { cls:"sc-st-closed", label:ms.closeStr, detail:`${leaderName} wins` };
-    if (ms.isDormy) return { cls:"sc-st-dormy", label:"DORMY", detail:`${leaderName} — ${ms.holesRemaining} to play` };
-    if (ms.leader) return { cls:"sc-st-lead", label:`${ms.absLead} UP`, detail:`${leaderName} · ${ms.holesRemaining} to play` };
+    if (ms.closed) return { cls: ms.result==="A" ? "sc-st-closed-a" : "sc-st-closed-b", label:ms.closeStr, detail:`${leaderName} wins` };
+    if (ms.isDormy) return { cls: ms.leader==="A" ? "sc-st-dormy-a" : "sc-st-dormy-b", label:"DORMY", detail:`${leaderName} — ${ms.holesRemaining} to play` };
+    if (ms.leader) return { cls: ms.leader==="A" ? "sc-st-lead-a" : "sc-st-lead-b", label:`${ms.absLead} UP`, detail:`${leaderName} · ${ms.holesRemaining} to play` };
     return { cls:"sc-st-neutral", label:"All Square", detail:`${ms.holesRemaining} to play` };
   }
   const status = getStatus();
@@ -36,8 +36,17 @@ export function ScorecardScreen({ tournament, matchId, onBack, onSubmitSide, isA
   function setHole(i, val) {
     if (ms.closed && i >= ms.holesPlayed) return;
     const next = [...holeResults];
-    next[i] = next[i]===val ? null : val;
-    for (let j=i+1; j<18; j++) next[j]=null;
+    next[i] = next[i] === val ? null : val;
+    if (next[i] === null) {
+      // Clearing a hole leaves a gap — drop everything after it
+      for (let j = i + 1; j < 18; j++) next[j] = null;
+    } else {
+      // Keep later holes; trim anything past a new early close
+      const state = computeMatchState(next);
+      if (state.closed) {
+        for (let j = state.holesPlayed; j < 18; j++) next[j] = null;
+      }
+    }
     setHoleResults(next);
   }
 
@@ -71,7 +80,7 @@ export function ScorecardScreen({ tournament, matchId, onBack, onSubmitSide, isA
           <div className="mp-notice mp-notice-info">
             ⏳ One side has submitted — enter your results to validate
             {match.playedOn && (
-              <div className="font-meta-sm t-faint mt-4">{matchPlayedLabel(match)}</div>
+              <div className="font-meta-sm mp-support-text mt-4">{matchPlayedLabel(match)}</div>
             )}
           </div>
         )}
@@ -138,10 +147,10 @@ export function ScorecardScreen({ tournament, matchId, onBack, onSubmitSide, isA
           </div>
           <div className="sc-result-score">{match.closeStr}</div>
           {matchPlayedLabel(match) && (
-            <div className="font-meta-sm t-faint mt-8">{matchPlayedLabel(match)}</div>
+            <div className="font-meta-sm mp-support-text mt-8">{matchPlayedLabel(match)}</div>
           )}
           {matchActivityLabel(match) && (
-            <div className="font-meta-sm t-faint mt-4">{matchActivityLabel(match)}</div>
+            <div className="font-meta-sm mp-support-text mt-4">{matchActivityLabel(match)}</div>
           )}
           {isDisputed && isAdmin && (
             <button className="mp-btn mp-btn-danger mt-8" onClick={()=>onAdminOverride(match)}>Override Result →</button>
@@ -159,18 +168,26 @@ export function ScorecardScreen({ tournament, matchId, onBack, onSubmitSide, isA
     <div className="sc-shell">
       <div className="sc-banner">
         <button onClick={()=>setSide(null)} className="mp-back-btn mb">← Back</button>
-        <div className="font-label t-accent mb-8">
-          Entering as: {side==="A"?teamA?.name:teamB?.name}
+        <div className="font-label mb-8">
+          Entering as:{" "}
+          <span className={side === "A" ? "sc-team-tone-a" : "sc-team-tone-b"}>
+            {side === "A" ? teamA?.name : teamB?.name}
+          </span>
         </div>
         <div className="sc-teams-row">
-          <div className="flex-1"><div className="sc-team-name">{teamA?.name}</div></div>
+          <div className="flex-1">
+            <div className="sc-team-name sc-team-tone-a">{teamA?.name}</div>
+          </div>
           <div className="sc-vs">vs</div>
-          <div className="flex-1"><div className="sc-team-name right">{teamB?.name}</div></div>
+          <div className="flex-1">
+            <div className="sc-team-name right sc-team-tone-b">{teamB?.name}</div>
+          </div>
         </div>
         <div className="sc-tally">
           {Array.from({length:18},(_,i)=>{
             const r=holeResults[i]; const isAuto=ms.closed&&i>=ms.holesPlayed;
-            return <div key={i} className={`sc-tally-pip${isAuto?" sc-tally-empty":r==="A"?" sc-tally-A":r==="B"?" sc-tally-B":r==="H"?" sc-tally-H":" sc-tally-empty"}`}>{!isAuto&&r?(r==="H"?"½":r):""}</div>;
+            const mark = !isAuto && r ? (r === "H" ? "/" : r === "A" ? "↑" : "↓") : "";
+            return <div key={i} className={`sc-tally-pip${isAuto?" sc-tally-empty":r==="A"?" sc-tally-A":r==="B"?" sc-tally-B":r==="H"?" sc-tally-H":" sc-tally-empty"}`}>{mark}</div>;
           })}
         </div>
         <div className={`sc-status ${status.cls}`}>
@@ -192,7 +209,7 @@ export function ScorecardScreen({ tournament, matchId, onBack, onSubmitSide, isA
                 ))}
               </div>
               <div className={`sc-hole-result${r==="A"?" is-A":r==="B"?" is-B":r==="H"?" is-H":""}`}>
-                {isAuto?"·":r?(r==="H"?"½":r==="A"?"A":"B"):"—"}
+                {isAuto?"·":r?(r==="H"?"/":r==="A"?"↑":"↓"):"—"}
               </div>
             </div>
           );
@@ -214,10 +231,10 @@ export function ScorecardScreen({ tournament, matchId, onBack, onSubmitSide, isA
                   max={localDateInputValue()}
                   onChange={e => setPlayedOn(e.target.value)}
                 />
-                <div className="font-meta-sm t-faint mt-6">Required for the first scorecard submission</div>
+                <div className="font-meta-sm mp-support-text mt-6">Required for the first scorecard submission</div>
               </>
             ) : (
-              <div className="font-meta-sm t-faint">{matchPlayedLabel(match)}</div>
+              <div className="font-meta-sm mp-support-text">{matchPlayedLabel(match)}</div>
             )}
           </div>
           <button

@@ -54,6 +54,21 @@ export function matchActivityLabel(m) {
   return null;
 }
 
+/** Team still needing to submit when status is pending_validation */
+export function waitingForTeamId(m) {
+  if (!m || m.status !== "pending_validation") return null;
+  if (m.submissionA && !m.submissionB) return m.teamB;
+  if (m.submissionB && !m.submissionA) return m.teamA;
+  return null;
+}
+
+export function pendingValidationLabel(m, teamName) {
+  if (teamName) {
+    return `Pending Validation, waiting for ${teamName} to submit results`;
+  }
+  return "Pending Validation";
+}
+
 export function minGroupsForTeams(n) {
   return Math.ceil(n / 4);
 }
