@@ -92,6 +92,19 @@ Open the URL Vite prints (usually `http://localhost:5173`). Admin: add `#/admin`
 
 Pushes to the connected branch build and publish automatically.
 
+## Keep Supabase awake (Free tier)
+
+Free projects pause after ~7 days with little API activity. This repo includes a GitHub Action (`.github/workflows/keep-supabase-alive.yml`) that pings the `tournaments` table twice a week.
+
+**One-time setup** — GitHub repo → **Settings → Secrets and variables → Actions** → add:
+
+| Secret | Value |
+|---|---|
+| `SUPABASE_URL` | Same as `VITE_SUPABASE_URL` |
+| `SUPABASE_ANON_KEY` | Same as `VITE_SUPABASE_ANON_KEY` |
+
+You can also run it manually from the **Actions** tab → **Keep Supabase Alive** → **Run workflow**.
+
 ## Project layout
 
 ```
