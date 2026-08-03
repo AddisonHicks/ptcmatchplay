@@ -4,7 +4,7 @@ import { Toast } from "./Toast.jsx";
 import { ScorecardScreen } from "./ScorecardScreen.jsx";
 import BracketView from "./BracketView.jsx";
 import { tournamentStyleOf, styleLabel, matchPlayedLabel, matchActivityLabel, nowIso, waitingForTeamId, pendingValidationLabel, bracketRoundLabel } from "../lib/format.js";
-import { computeGroupStats, sortByRecord, submissionsMatch, groupAdvancementNotes } from "../lib/engine.js";
+import { computeGroupStats, sortByRecord, submissionsMatch, groupAdvancementNotes, matchCloseStr } from "../lib/engine.js";
 
 function PublicMatchesTab({ tournament, onOpenMatch }) {
   function getTeam(id) { return tournament.teams.find(t => t.id === id); }
@@ -45,12 +45,16 @@ function PublicMatchesTab({ tournament, onOpenMatch }) {
 
   function statusBadge(m) {
     if (m.status === "disputed") return <span className="badge badge-disputed">⚠ Disputed</span>;
-    if (m.status === "pending_validation") return null;
-    if (m.status === "closed") {
-      const w = m.result === "A" ? getTeam(m.teamA) : m.result === "B" ? getTeam(m.teamB) : null;
-      return <span className="badge badge-done">{w ? w.name : "Halve"} ✓</span>;
-    }
+    if (m.status === "pending_validation" || m.status === "closed") return null;
     return <span className="badge badge-pending">Enter →</span>;
+  }
+
+  function closedResultLabel(m) {
+    if (m.status !== "closed" || m.isBye) return null;
+    if (m.result === "H") return "Halve";
+    const score = matchCloseStr(m);
+    if (!score || score === "bye") return null;
+    return score;
   }
 
   function MatchRow({ m }) {
@@ -62,14 +66,27 @@ function PublicMatchesTab({ tournament, onOpenMatch }) {
     const waitingId = waitingForTeamId(m);
     const waitingName = waitingId ? getTeam(waitingId)?.name : null;
     const badge = statusBadge(m);
+    const closed = m.status === "closed";
+    const aWon = closed && m.result === "A";
+    const bWon = closed && m.result === "B";
+    const aLost = closed && m.result === "B";
+    const bLost = closed && m.result === "A";
+    const resultLabel = closedResultLabel(m);
     return (
       <div className={`mp-match-row-item${statusCls}`} onClick={() => onOpenMatch(m.id)}>
         <div className="flex-1 min-w-0">
           <div className="mp-match-teams">
-            <div className={`mp-match-name${m.status === "closed" && m.result === "A" ? " is-winner" : ""}`}>{tA?.name}</div>
-            <div className="mp-match-vs">vs</div>
-            <div className={`mp-match-name right${m.status === "closed" && m.result === "B" ? " is-winner" : ""}`}>
+            <div className={`mp-match-name${aWon ? " is-winner" : ""}${aLost ? " is-loser" : ""}`}>
+              {tA?.name}
+              {aWon && <span className="mp-match-check" aria-hidden="true">✓</span>}
+            </div>
+            <div className="mp-match-vs">
+              <span className="mp-match-vs-label">vs</span>
+              {resultLabel && <span className="mp-match-result">{resultLabel}</span>}
+            </div>
+            <div className={`mp-match-name right${bWon ? " is-winner" : ""}${bLost ? " is-loser" : ""}`}>
               {tB?.name || <span className="mp-match-bye">Bye</span>}
+              {bWon && <span className="mp-match-check" aria-hidden="true">✓</span>}
             </div>
           </div>
           {played && <div className="mp-match-time">{played}</div>}
