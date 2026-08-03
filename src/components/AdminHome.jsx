@@ -765,10 +765,8 @@ function AdminTournamentDetail({ tournament, onSaveMatch, onArchive, onBack }) {
 
           {hasBracketList && (
             <>
-              <div className={`mp-section-eyebrow${hasPools ? " mt-8" : ""}`}>Knockout</div>
-              <div className="mp-section-title mb-14">
-                {hasPools ? "Rounds" : "Matches"}
-              </div>
+              <div className={`mp-section-eyebrow${hasPools ? " mt-8" : ""}`}>Knockout Stage</div>
+              <div className="mp-section-title mb-14">Rounds</div>
               {bracketRounds.map(r => <AdminRoundAccordion key={r} round={r} />)}
             </>
           )}
