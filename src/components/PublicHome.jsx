@@ -77,16 +77,18 @@ function PublicMatchesTab({ tournament, onOpenMatch }) {
         <div className="flex-1 min-w-0">
           <div className="mp-match-teams">
             <div className={`mp-match-name${aWon ? " is-winner" : ""}${aLost ? " is-loser" : ""}`}>
-              {tA?.name}
-              {aWon && <span className="mp-match-check" aria-hidden="true">✓</span>}
+              {aWon ? <span className="mp-match-name-hl">{tA?.name}</span> : tA?.name}
             </div>
             <div className="mp-match-vs">
               <span className="mp-match-vs-label">vs</span>
               {resultLabel && <span className="mp-match-result">{resultLabel}</span>}
             </div>
             <div className={`mp-match-name right${bWon ? " is-winner" : ""}${bLost ? " is-loser" : ""}`}>
-              {tB?.name || <span className="mp-match-bye">Bye</span>}
-              {bWon && <span className="mp-match-check" aria-hidden="true">✓</span>}
+              {bWon ? (
+                <span className="mp-match-name-hl">{tB?.name}</span>
+              ) : (
+                tB?.name || <span className="mp-match-bye">Bye</span>
+              )}
             </div>
           </div>
           {played && <div className="mp-match-time">{played}</div>}
