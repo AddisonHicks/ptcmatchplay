@@ -521,7 +521,7 @@ export default function PublicHome({ db, archived = [], onEnsureArchives, onSave
       <div className="mp-root">
         <div className="mp-topbar">
           <button onClick={() => setArchiveView(null)} className="mp-back-btn">← Back</button>
-          <BrandMark />
+          <BrandMark groupName={db.groupName} groupLogoUrl={db.groupLogoUrl} />
           <div className="w-60"/>
         </div>
         <div className="mp-archive-header">
@@ -548,7 +548,7 @@ export default function PublicHome({ db, archived = [], onEnsureArchives, onSave
     return (
       <div className="mp-root">
         <div className="mp-topbar">
-          <BrandMark />
+          <BrandMark groupName={db.groupName} groupLogoUrl={db.groupLogoUrl} />
         </div>
         <div className="mp-page ta-center pt-60">
           <div className="mp-empty-title">No Active Tournaments</div>
@@ -580,7 +580,7 @@ export default function PublicHome({ db, archived = [], onEnsureArchives, onSave
     <div className="mp-root">
       <div className="mp-public-header">
         <div className="mp-public-header-brand">
-          <BrandMark />
+          <BrandMark groupName={db.groupName} groupLogoUrl={db.groupLogoUrl} />
         </div>
         <div className="mp-tourn-banner">
           {active.length > 1 ? (

@@ -15,7 +15,7 @@ Golf match-play tournament app for **Peachtree Collective**. Admins set up tourn
 - Create pool+bracket or straight knockout tournaments
 - Override results, resolve disputes, force-approve single submissions
 - Archive finished tournaments
-- Optional Discord webhook (app-wide): posts when a match is validated or overridden
+- Optional Discord webhook, group name/logo, and app colors under **App settings**
 
 Tournament data lives in **Supabase** (JSONB rows) with Realtime so open tabs stay in sync.
 

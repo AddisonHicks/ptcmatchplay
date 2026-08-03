@@ -2,6 +2,11 @@
 
 import { bracketRoundLabel } from "./format.js";
 import { computeGroupStats, sortByRecord, matchCloseStr } from "./engine.js";
+import {
+  DEFAULT_COLORS,
+  peachToDiscordColor,
+  resolveGroupName,
+} from "./appSettings.js";
 
 const DISCORD_WEBHOOK_RE = /^https:\/\/(?:discord\.com|discordapp\.com)\/api\/webhooks\//i;
 
@@ -178,7 +183,7 @@ function seeTournamentComponents(tournamentId) {
   ];
 }
 
-export function buildDiscordMatchPayload({ tournament, match }) {
+export function buildDiscordMatchPayload({ tournament, match, accentColor }) {
   const { title, detail } = resultSummary(tournament, match);
   const score = match.closeStr || matchCloseStr(match) || "";
   const stage = matchStageLabel(tournament, match);
@@ -210,6 +215,7 @@ export function buildDiscordMatchPayload({ tournament, match }) {
   ];
 
   const components = seeTournamentComponents(tournament?.id);
+  const embedColor = peachToDiscordColor(accentColor || DEFAULT_COLORS.peach);
 
   return {
     content: lines.join("\n"),
@@ -217,7 +223,7 @@ export function buildDiscordMatchPayload({ tournament, match }) {
       {
         title,
         description: detail,
-        color: 0xf5946f,
+        color: embedColor,
         fields,
       },
     ],
@@ -242,14 +248,15 @@ export async function postDiscordWebhook(webhookUrl, body) {
   return true;
 }
 
-export async function postDiscordMatchResult({ webhookUrl, tournament, match }) {
-  const payload = buildDiscordMatchPayload({ tournament, match });
+export async function postDiscordMatchResult({ webhookUrl, tournament, match, accentColor }) {
+  const payload = buildDiscordMatchPayload({ tournament, match, accentColor });
   return postDiscordWebhook(webhookUrl, payload);
 }
 
-export async function postDiscordTestMessage(webhookUrl) {
+export async function postDiscordTestMessage(webhookUrl, { groupName } = {}) {
+  const brand = resolveGroupName({ groupName });
   return postDiscordWebhook(webhookUrl, {
-    content: "**PTC Match Play** — Discord notifications are connected ✓",
+    content: `**${brand} Match Play** — Discord notifications are connected ✓`,
   });
 }
 
