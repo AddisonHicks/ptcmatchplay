@@ -695,6 +695,20 @@ button {
   color: var(--accent-text);
   margin-bottom: 14px;
 }
+.mp-discord-card .mp-section-sub {
+  margin-top: 0;
+}
+.mp-discord-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.mp-discord-actions .mp-btn {
+  width: auto;
+  flex: 0 0 auto;
+  padding: 10px 14px;
+}
 
 /* ─── Forms ───────────────────────────────────────────────────────────────── */
 .mp-input {

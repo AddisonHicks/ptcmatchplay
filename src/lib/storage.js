@@ -8,12 +8,14 @@ export const SAVE_MAX_RETRIES = 5;
 // archive → { tournaments: [archived only] } (low contention; plain upsert)
 
 function emptyDb() {
-  return { tournaments: [] };
+  return { tournaments: [], discordWebhookUrl: null };
 }
 
+/** Keep app-level settings; drop archived tournaments from the active working set. */
 function activeOnly(state) {
   return {
     tournaments: (state?.tournaments ?? []).filter(t => t.status !== "archived"),
+    discordWebhookUrl: state?.discordWebhookUrl?.trim() || null,
   };
 }
 
@@ -64,7 +66,10 @@ export async function loadMain() {
     const state = data?.state ?? emptyDb();
     return {
       ok: true,
-      state: { tournaments: state.tournaments ?? [] },
+      state: {
+        tournaments: state.tournaments ?? [],
+        discordWebhookUrl: state.discordWebhookUrl?.trim() || null,
+      },
       version: data?.version ?? 0,
       exists: !!data,
     };
@@ -128,8 +133,11 @@ export async function migrateArchivedFromMain(mainState, version) {
   const tournaments = mainState?.tournaments ?? [];
   const stuck = tournaments.filter(t => t.status === "archived");
   const active = tournaments.filter(t => t.status !== "archived");
+  const settings = {
+    discordWebhookUrl: mainState?.discordWebhookUrl?.trim() || null,
+  };
   if (stuck.length === 0) {
-    return { ok: true, state: { tournaments: active }, version };
+    return { ok: true, state: { tournaments: active, ...settings }, version };
   }
 
   const archiveLoad = await loadArchive();
@@ -138,7 +146,7 @@ export async function migrateArchivedFromMain(mainState, version) {
     return {
       ok: false,
       error: archiveLoad.error,
-      state: { tournaments: active },
+      state: { tournaments: active, ...settings },
       version,
     };
   }
@@ -151,7 +159,7 @@ export async function migrateArchivedFromMain(mainState, version) {
     ],
   };
   await saveArchive(merged);
-  const nextMain = { tournaments: active };
+  const nextMain = { tournaments: active, ...settings };
 
   const result = await saveMain(nextMain, version);
   if (result.ok) return { ok: true, state: nextMain, version: result.version };

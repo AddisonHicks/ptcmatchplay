@@ -466,11 +466,52 @@ function TournamentPicker({ tournaments, valueId, onChange }) {
 
 export default function PublicHome({ db, archived = [], onEnsureArchives, onSaveMatch }) {
   const active = db.tournaments.filter(t => t.status === "active");
-  const [activeTournIdx, setActiveTournIdx] = useState(0);
+
+  function tournIdFromHash() {
+    const m = window.location.hash.match(/^#\/t\/([^/?#]+)/);
+    return m ? decodeURIComponent(m[1]) : null;
+  }
+
+  function indexForTournId(id) {
+    if (!id) return 0;
+    const idx = active.findIndex(t => t.id === id);
+    return idx >= 0 ? idx : 0;
+  }
+
+  const [activeTournIdx, setActiveTournIdx] = useState(() => indexForTournId(tournIdFromHash()));
   const [archiveView, setArchiveView] = useState(null); // tournament id
   const [archiveTab, setArchiveTab] = useState("bracket");
 
   useEffect(() => { onEnsureArchives?.(); }, []); // load archives once when this view mounts
+
+  useEffect(() => {
+    function syncFromHash() {
+      if (window.location.hash === "#/admin") return;
+      const id = tournIdFromHash();
+      if (!id || !active.length) return;
+      const idx = active.findIndex(t => t.id === id);
+      if (idx >= 0) setActiveTournIdx(idx);
+    }
+    syncFromHash();
+    window.addEventListener("hashchange", syncFromHash);
+    return () => window.removeEventListener("hashchange", syncFromHash);
+  }, [active]);
+
+  // Keep idx valid when the active list changes
+  useEffect(() => {
+    if (!active.length) return;
+    if (activeTournIdx >= active.length) setActiveTournIdx(0);
+  }, [active, activeTournIdx]);
+
+  function selectTournament(id) {
+    const idx = active.findIndex(t => t.id === id);
+    if (idx < 0) return;
+    setActiveTournIdx(idx);
+    const next = `#/t/${encodeURIComponent(id)}`;
+    if (window.location.hash !== next) {
+      window.location.hash = next;
+    }
+  }
 
   // Archive detail view
   if (archiveView) {
@@ -546,10 +587,7 @@ export default function PublicHome({ db, archived = [], onEnsureArchives, onSave
             <TournamentPicker
               tournaments={active}
               valueId={currentTourn.id}
-              onChange={id => {
-                const idx = active.findIndex(t => t.id === id);
-                if (idx >= 0) setActiveTournIdx(idx);
-              }}
+              onChange={selectTournament}
             />
           ) : (
             <div className="mp-tourn-banner-name">{currentTourn.name}</div>

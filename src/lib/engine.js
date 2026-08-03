@@ -409,7 +409,11 @@ export function applyMatchToDb(db, tournId, matchId, updatedMatch, isGroupMatch)
     if (updatedMatch.status === "closed") t2 = advanceBracketIfReady(t2);
     updated = t2;
   }
-  return { ...db, tournaments: db.tournaments.map(t => t.id === tournId ? updated : t) };
+  return {
+    ...db,
+    discordWebhookUrl: db.discordWebhookUrl || null,
+    tournaments: db.tournaments.map(t => t.id === tournId ? updated : t),
+  };
 }
 
 export function initTournament({

@@ -11,6 +11,7 @@ import {
   activeOnly,
 } from "./lib/storage.js";
 import { applyMatchToDb } from "./lib/engine.js";
+import { resolveDiscordWebhook, postDiscordMatchResult } from "./lib/discord.js";
 import { BrandMark } from "./components/BrandMark.jsx";
 import { AdminPasswordScreen } from "./components/AdminPasswordScreen.jsx";
 import AdminHome from "./components/AdminHome.jsx";
@@ -168,9 +169,35 @@ export default function App() {
   }
 
   async function handleSaveMatch(tournId, matchId, updatedMatch, isGroupMatch) {
-    return persistWithRetry(base =>
+    const tournamentBefore = dbRef.current.tournaments.find(t => t.id === tournId);
+    const prevMatch = tournamentBefore
+      ? [...(tournamentBefore.matches || []), ...(tournamentBefore.bracket || [])].find(m => m.id === matchId)
+      : null;
+    const wasClosed = prevMatch?.status === "closed";
+
+    const ok = await persistWithRetry(base =>
       applyMatchToDb(base, tournId, matchId, updatedMatch, isGroupMatch)
     );
+
+    if (ok && updatedMatch.status === "closed" && !wasClosed) {
+      const tournament = dbRef.current.tournaments.find(t => t.id === tournId) || tournamentBefore;
+      const webhookUrl = resolveDiscordWebhook(tournament, dbRef.current);
+      if (webhookUrl) {
+        postDiscordMatchResult({ webhookUrl, tournament, match: updatedMatch }).catch(err => {
+          console.error("Discord notify failed", err);
+        });
+      }
+    }
+
+    return ok;
+  }
+
+  async function handleSaveDiscordWebhook(url) {
+    const trimmed = (url || "").trim();
+    return persistWithRetry(base => ({
+      ...base,
+      discordWebhookUrl: trimmed || null,
+    }));
   }
 
   async function handleArchive(tournId) {
@@ -209,6 +236,7 @@ export default function App() {
     }
 
     await persistWithRetry(base => ({
+      ...base,
       tournaments: base.tournaments.filter(t => t.id !== tournId),
     }));
   }
@@ -258,6 +286,7 @@ export default function App() {
           onCreateTournament={handleCreateTournament}
           onSaveMatch={handleSaveMatch}
           onArchive={handleArchive}
+          onSaveDiscordWebhook={handleSaveDiscordWebhook}
         />
       </div></>
     );

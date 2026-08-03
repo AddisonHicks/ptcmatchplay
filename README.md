@@ -15,6 +15,7 @@ Golf match-play tournament app for **Peachtree Collective**. Admins set up tourn
 - Create pool+bracket or straight knockout tournaments
 - Override results, resolve disputes, force-approve single submissions
 - Archive finished tournaments
+- Optional Discord webhook (app-wide): posts when a match is validated or overridden
 
 Tournament data lives in **Supabase** (JSONB rows) with Realtime so open tabs stay in sync.
 
@@ -105,6 +106,15 @@ Free projects pause after ~7 days with little API activity. This repo includes a
 
 You can also run it manually from the **Actions** tab → **Keep Supabase Alive** → **Run workflow**.
 
+## Discord notifications
+
+Configure an app-wide Discord webhook in **Admin Panel** (commissioner home, above the tournament list).
+
+- Stored on the main Supabase state as `discordWebhookUrl` (not an env var)
+- Fires when a match transitions to **closed** (both sides agree, admin override, or force-approve)
+- The webhook URL is client-readable (same model as other app data); treat the Discord channel as semi-public
+- Per-tournament overrides are supported in code (`tournament.discordWebhookUrl`) but not exposed in the UI yet
+
 ## Project layout
 
 ```
@@ -119,6 +129,7 @@ src/
   lib/
     engine.js             # Match-play math, pools, bracket advancement
     storage.js            # Supabase load/save + versioning
+    discord.js            # Discord webhook notify on match close
     format.js             # Dates, labels, ids
     supabase.js           # Client
 ```
