@@ -1796,8 +1796,17 @@ button {
 .mp-match-name.is-winner {
   color: var(--accent-text);
 }
+.mp-match-name.is-loser {
+  color: var(--text-faint);
+  font-weight: 500;
+}
 .mp-match-name.right {
   text-align: right;
+}
+.mp-match-check {
+  color: var(--peach);
+  margin-left: 5px;
+  font-weight: 700;
 }
 .mp-match-time {
   font-family: "Montserrat", sans-serif;
@@ -1821,11 +1830,26 @@ button {
 }
 .mp-match-vs {
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
   padding-top: 1px;
+  min-width: 2.5rem;
   font-family: "Montserrat", sans-serif;
+  line-height: 1.2;
+}
+.mp-match-vs-label {
   font-size: 10px;
   color: var(--text-muted);
-  line-height: 1.35;
+}
+.mp-match-result {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--peach);
+  white-space: nowrap;
 }
 .mp-match-bye {
   color: var(--text-muted);
