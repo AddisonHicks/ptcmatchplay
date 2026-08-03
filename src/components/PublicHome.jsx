@@ -3,7 +3,7 @@ import { BrandMark } from "./BrandMark.jsx";
 import { Toast } from "./Toast.jsx";
 import { ScorecardScreen } from "./ScorecardScreen.jsx";
 import BracketView from "./BracketView.jsx";
-import { tournamentStyleOf, styleLabel, matchPlayedLabel, matchActivityLabel, nowIso, waitingForTeamId, pendingValidationLabel } from "../lib/format.js";
+import { tournamentStyleOf, styleLabel, matchPlayedLabel, matchActivityLabel, nowIso, waitingForTeamId, pendingValidationLabel, bracketRoundLabel } from "../lib/format.js";
 import { computeGroupStats, sortByRecord, submissionsMatch, groupAdvancementNotes } from "../lib/engine.js";
 
 function PublicMatchesTab({ tournament, onOpenMatch }) {
@@ -11,8 +11,10 @@ function PublicMatchesTab({ tournament, onOpenMatch }) {
 
   const groups = tournament.groups || [];
   const hasPools = tournamentStyleOf(tournament) === "pool_bracket" && groups.length > 0;
-  const bracketMatches = (tournament.bracket || []).filter(m => !m.isBye);
+  const bracket = tournament.bracket || [];
+  const bracketMatches = bracket.filter(m => !m.isBye);
   const hasBracket = bracketMatches.length > 0;
+  const bracketRounds = [...new Set(bracket.map(m => m.bracketRound))].sort((a, b) => a - b);
 
   const defaultExpanded = (() => {
     const ids = [];
@@ -20,7 +22,17 @@ function PublicMatchesTab({ tournament, onOpenMatch }) {
       const playing = groups.filter(g => g.status !== "done");
       (playing.length ? playing : groups.slice(0, 1)).forEach(g => ids.push(g.id));
     } else if (hasBracket) {
-      ids.push("__bracket__");
+      let openedRound = false;
+      for (const r of bracketRounds) {
+        const hasOpen = bracket.some(m => m.bracketRound === r && !m.isBye && m.status !== "closed");
+        if (hasOpen) {
+          ids.push(`__round_${r}`);
+          openedRound = true;
+        }
+      }
+      if (!openedRound && bracketRounds.length) {
+        ids.push(`__round_${bracketRounds[bracketRounds.length - 1]}`);
+      }
     }
     return ids;
   })();
@@ -106,6 +118,39 @@ function PublicMatchesTab({ tournament, onOpenMatch }) {
     );
   }
 
+  function RoundAccordion({ round }) {
+    const roundAll = bracket.filter(m => m.bracketRound === round);
+    const roundMatches = roundAll.filter(m => !m.isBye).sort((a, b) => a.slot - b.slot);
+    if (!roundMatches.length) return null;
+    const pendingCount = roundMatches.filter(m => m.status !== "closed").length;
+    const allDone = pendingCount === 0;
+    return (
+      <MatchAccordion
+        id={`__round_${round}`}
+        title={bracketRoundLabel(roundAll.length)}
+        meta={allDone ? "Complete" : `${pendingCount} open`}
+        badge={
+          <span className={`badge ${allDone ? "badge-advanced" : "badge-active"}`}>
+            {allDone ? "Done" : "Live"}
+          </span>
+        }
+        matches={roundMatches}
+      />
+    );
+  }
+
+  function KnockoutSection({ complete = false }) {
+    return (
+      <>
+        <div className={`mp-section-eyebrow${hasPools ? " mt-8" : ""}`}>
+          {complete ? "Knockout" : "Knockout Stage"}
+        </div>
+        {!complete && <div className="mp-section-title mb-14">Rounds</div>}
+        {bracketRounds.map(r => <RoundAccordion key={r} round={r} />)}
+      </>
+    );
+  }
+
   if (tournament.phase === "complete") {
     const champion = tournament.teams.find(t => t.id === tournament.championId);
     return (
@@ -133,18 +178,7 @@ function PublicMatchesTab({ tournament, onOpenMatch }) {
             })}
           </>
         )}
-        {hasBracket && (
-          <>
-            <div className="mp-section-eyebrow mt-8">Knockout</div>
-            <MatchAccordion
-              id="__bracket__"
-              title="Bracket Matches"
-              meta="Final results"
-              badge={<span className="badge badge-advanced">Done</span>}
-              matches={bracketMatches}
-            />
-          </>
-        )}
+        {hasBracket && <KnockoutSection complete />}
       </div>
     );
   }
@@ -199,23 +233,7 @@ function PublicMatchesTab({ tournament, onOpenMatch }) {
         </>
       )}
 
-      {hasBracket && (
-        <>
-          <div className={`mp-section-eyebrow${hasPools ? " mt-8" : ""}`}>Knockout Stage</div>
-          {!hasPools && <div className="mp-section-title mb-14">Matches</div>}
-          <MatchAccordion
-            id="__bracket__"
-            title="Bracket Matches"
-            meta={`${bracketMatches.filter(m => m.status !== "closed").length} open`}
-            badge={
-              <span className={`badge ${bracketMatches.every(m => m.status === "closed") ? "badge-advanced" : "badge-active"}`}>
-                {bracketMatches.every(m => m.status === "closed") ? "Done" : "Live"}
-              </span>
-            }
-            matches={bracketMatches}
-          />
-        </>
-      )}
+      {hasBracket && <KnockoutSection />}
 
       {!hasPools && !hasBracket && (
         <div className="mp-card ta-center pad-lg">
