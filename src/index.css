@@ -1803,10 +1803,16 @@ button {
 .mp-match-name.right {
   text-align: right;
 }
-.mp-match-check {
-  color: var(--peach);
-  margin-left: 5px;
-  font-weight: 700;
+.mp-match-name-hl {
+  display: inline-block;
+  max-width: 100%;
+  background: var(--peach);
+  color: var(--text-on-peach);
+  padding: 2px 7px;
+  border-radius: 2px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .mp-match-time {
   font-family: "Montserrat", sans-serif;
@@ -1833,7 +1839,7 @@ button {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 3px;
   padding-top: 1px;
   min-width: 2.5rem;
   font-family: "Montserrat", sans-serif;
@@ -1844,11 +1850,15 @@ button {
   color: var(--text-muted);
 }
 .mp-match-result {
+  display: inline-block;
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--peach);
+  color: var(--text-on-peach);
+  background: var(--peach);
+  padding: 2px 6px;
+  border-radius: 2px;
   white-space: nowrap;
 }
 .mp-match-bye {
