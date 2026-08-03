@@ -1,10 +1,19 @@
 import { useState } from "react";
+import {
+  resolveGroupLogoUrl,
+  resolveGroupName,
+  splitBrandName,
+} from "../lib/appSettings.js";
 
 const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || "";
 
-export function AdminPasswordScreen({ onUnlock }) {
+export function AdminPasswordScreen({ onUnlock, groupName, groupLogoUrl }) {
   const [pw, setPw] = useState("");
   const [error, setError] = useState(false);
+  const name = resolveGroupName({ groupName });
+  const logo = resolveGroupLogoUrl({ groupLogoUrl });
+  const { lead, trail } = splitBrandName(name);
+
   function handleSubmit() {
     if (pw.toLowerCase() === ADMIN_PASSWORD.toLowerCase()) onUnlock();
     else { setError(true); setTimeout(() => setError(false), 2000); }
@@ -18,8 +27,10 @@ export function AdminPasswordScreen({ onUnlock }) {
       >
         ← Back to tournament
       </button>
-      <img className="mp-pw-crest" src="/brand/ptc-peach.png" alt="Peachtree Collective" />
-      <div className="mp-pw-title">Peachtree Admin</div>
+      <img className="mp-pw-crest" src={logo} alt={name} />
+      <div className="mp-pw-title">
+        {lead}{trail ? <>{" "}<span>{trail}</span></> : null}{" "}Admin
+      </div>
       <div className="mp-pw-sub">Commissioner access only</div>
       <div className="mp-pw-form">
         <input type="password" placeholder="password"

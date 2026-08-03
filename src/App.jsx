@@ -12,6 +12,11 @@ import {
 } from "./lib/storage.js";
 import { applyMatchToDb } from "./lib/engine.js";
 import { resolveDiscordWebhook, postDiscordMatchResult } from "./lib/discord.js";
+import {
+  applyAppColors,
+  normalizeAppSettings,
+  resolveGroupName,
+} from "./lib/appSettings.js";
 import { BrandMark } from "./components/BrandMark.jsx";
 import { AdminPasswordScreen } from "./components/AdminPasswordScreen.jsx";
 import AdminHome from "./components/AdminHome.jsx";
@@ -42,6 +47,12 @@ export default function App() {
     window.addEventListener("hashchange", handler);
     return () => window.removeEventListener("hashchange", handler);
   }, []);
+
+  // Live theme + document title from app settings
+  useEffect(() => {
+    applyAppColors(db.colors);
+    document.title = `${resolveGroupName(db)} · Match Play`;
+  }, [db]);
 
   useEffect(() => {
     (async () => {
@@ -183,7 +194,13 @@ export default function App() {
       const tournament = dbRef.current.tournaments.find(t => t.id === tournId) || tournamentBefore;
       const webhookUrl = resolveDiscordWebhook(tournament, dbRef.current);
       if (webhookUrl) {
-        postDiscordMatchResult({ webhookUrl, tournament, match: updatedMatch }).catch(err => {
+        const accentColor = dbRef.current.colors?.peach;
+        postDiscordMatchResult({
+          webhookUrl,
+          tournament,
+          match: updatedMatch,
+          accentColor,
+        }).catch(err => {
           console.error("Discord notify failed", err);
         });
       }
@@ -198,6 +215,21 @@ export default function App() {
       ...base,
       discordWebhookUrl: trimmed || null,
     }));
+  }
+
+  async function handleSaveAppSettings(partial) {
+    return persistWithRetry(base => {
+      const merged = normalizeAppSettings({
+        ...base,
+        ...partial,
+        // Keep webhook unless the caller explicitly included it
+        discordWebhookUrl:
+          partial && Object.prototype.hasOwnProperty.call(partial, "discordWebhookUrl")
+            ? partial.discordWebhookUrl
+            : base.discordWebhookUrl,
+      });
+      return { ...base, ...merged };
+    });
   }
 
   async function handleArchive(tournId) {
@@ -261,19 +293,27 @@ export default function App() {
     );
   }
 
+  const brandProps = {
+    groupName: db.groupName,
+    groupLogoUrl: db.groupLogoUrl,
+  };
+
   // ── ADMIN ROUTE ──
   if (route === "admin") {
     if (!adminAuthed) {
       return (
         <><div className="mp-root">
-          <AdminPasswordScreen onUnlock={() => setAdminAuthed(true)}/>
+          <AdminPasswordScreen
+            onUnlock={() => setAdminAuthed(true)}
+            {...brandProps}
+          />
         </div></>
       );
     }
     return (
       <><div className="mp-root">
         <div className="mp-topbar">
-          <BrandMark />
+          <BrandMark {...brandProps} />
           <div className="mp-topbar-right">
             <span className="mp-topbar-badge">Admin</span>
             <button onClick={() => { window.location.hash = ""; setAdminAuthed(false); }} className="mp-exit-btn">Exit</button>
@@ -287,6 +327,7 @@ export default function App() {
           onSaveMatch={handleSaveMatch}
           onArchive={handleArchive}
           onSaveDiscordWebhook={handleSaveDiscordWebhook}
+          onSaveAppSettings={handleSaveAppSettings}
         />
       </div></>
     );

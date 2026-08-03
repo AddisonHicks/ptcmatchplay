@@ -1,11 +1,8 @@
 import { useState, useEffect } from "react";
 import { Toast } from "./Toast.jsx";
 import BracketView from "./BracketView.jsx";
+import AdminAppSettings from "./AdminAppSettings.jsx";
 import { initTournament, submissionsMatch } from "../lib/engine.js";
-import {
-  isDiscordWebhookUrl,
-  postDiscordTestMessage,
-} from "../lib/discord.js";
 import {
   nowIso,
   localDateInputValue,
@@ -843,58 +840,27 @@ export default function AdminHome({
   onSaveMatch,
   onArchive,
   onSaveDiscordWebhook,
+  onSaveAppSettings,
 }) {
   const [creating, setCreating] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
   const [view, setView] = useState("active"); // "active" | "archived"
-  const [webhookDraft, setWebhookDraft] = useState(db.discordWebhookUrl || "");
-  const [webhookBusy, setWebhookBusy] = useState(false);
-  const [toast, setToast] = useState(null);
-  function showToast(msg) { setToast(msg); setTimeout(() => setToast(null), 2500); }
 
   useEffect(() => { onEnsureArchives?.(); }, []); // load archives once when this view mounts
-  useEffect(() => { setWebhookDraft(db.discordWebhookUrl || ""); }, [db.discordWebhookUrl]);
 
   const active = db.tournaments.filter(t => t.status === "active");
   const selected = active.find(t => t.id === selectedId) || archived.find(t => t.id === selectedId);
 
-  async function saveWebhook() {
-    const trimmed = webhookDraft.trim();
-    if (trimmed && !isDiscordWebhookUrl(trimmed)) {
-      showToast("Enter a valid Discord webhook URL");
-      return;
-    }
-    setWebhookBusy(true);
-    const ok = await onSaveDiscordWebhook?.(trimmed);
-    setWebhookBusy(false);
-    if (ok === false) showToast("Couldn't save webhook — try again");
-    else showToast(trimmed ? "Discord webhook saved ✓" : "Discord webhook cleared");
-  }
-
-  async function clearWebhook() {
-    setWebhookDraft("");
-    setWebhookBusy(true);
-    const ok = await onSaveDiscordWebhook?.("");
-    setWebhookBusy(false);
-    if (ok === false) showToast("Couldn't clear webhook — try again");
-    else showToast("Discord webhook cleared");
-  }
-
-  async function testWebhook() {
-    const url = webhookDraft.trim() || db.discordWebhookUrl || "";
-    if (!isDiscordWebhookUrl(url)) {
-      showToast("Save a valid Discord webhook URL first");
-      return;
-    }
-    setWebhookBusy(true);
-    try {
-      await postDiscordTestMessage(url);
-      showToast("Test message sent ✓");
-    } catch (e) {
-      console.error(e);
-      showToast("Test failed — check the webhook URL");
-    }
-    setWebhookBusy(false);
+  if (showSettings) {
+    return (
+      <AdminAppSettings
+        db={db}
+        onBack={() => setShowSettings(false)}
+        onSaveDiscordWebhook={onSaveDiscordWebhook}
+        onSaveAppSettings={onSaveAppSettings}
+      />
+    );
   }
 
   if (creating) {
@@ -914,40 +880,11 @@ export default function AdminHome({
 
   return (
     <div className="mp-page">
-      {toast && <Toast message={toast} />}
       <div className="mp-section-eyebrow">Commissioner</div>
       <div className="mp-section-title">Admin Panel</div>
-
-      <div className="mp-card mp-discord-card mb-20">
-        <div className="mp-card-title">Discord notifications</div>
-        <div className="mp-section-sub mb-12">
-          Posts to this channel when a match result is validated or overridden. App-wide for all tournaments.
-        </div>
-        <div className="font-label t-muted mb-6">Webhook URL</div>
-        <input
-          className="mp-input mb-12"
-          type="url"
-          value={webhookDraft}
-          onChange={e => setWebhookDraft(e.target.value)}
-          placeholder="https://discord.com/api/webhooks/…"
-          autoComplete="off"
-          spellCheck={false}
-        />
-        <div className="mp-discord-actions">
-          <button type="button" className="mp-btn mp-btn-primary" onClick={saveWebhook} disabled={webhookBusy}>
-            Save
-          </button>
-          <button type="button" className="mp-btn mp-btn-ghost" onClick={testWebhook} disabled={webhookBusy}>
-            Send test
-          </button>
-          <button type="button" className="mp-btn mp-btn-ghost" onClick={clearWebhook} disabled={webhookBusy || (!webhookDraft && !db.discordWebhookUrl)}>
-            Clear
-          </button>
-        </div>
-        {db.discordWebhookUrl && (
-          <div className="font-meta-sm t-muted mt-10">Webhook configured — notifications are on</div>
-        )}
-      </div>
+      <button type="button" className="mp-app-settings-link mb-20" onClick={() => setShowSettings(true)}>
+        App settings →
+      </button>
 
       {/* View toggle */}
       <div className="mp-segment mb-20">

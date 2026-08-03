@@ -411,7 +411,6 @@ export function applyMatchToDb(db, tournId, matchId, updatedMatch, isGroupMatch)
   }
   return {
     ...db,
-    discordWebhookUrl: db.discordWebhookUrl || null,
     tournaments: db.tournaments.map(t => t.id === tournId ? updated : t),
   };
 }

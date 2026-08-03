@@ -1,21 +1,22 @@
 import { supabase } from "./supabase.js";
+import { emptyAppSettings, normalizeAppSettings } from "./appSettings.js";
 
 export const DB_ID = "main";
 export const ARCHIVE_ID = "archive";
 export const SAVE_MAX_RETRIES = 5;
 
-// main    → { tournaments: [active only] } + integer version for optimistic locking
+// main    → { tournaments: [active only], ...appSettings } + integer version for optimistic locking
 // archive → { tournaments: [archived only] } (low contention; plain upsert)
 
 function emptyDb() {
-  return { tournaments: [], discordWebhookUrl: null };
+  return { tournaments: [], ...emptyAppSettings() };
 }
 
 /** Keep app-level settings; drop archived tournaments from the active working set. */
 function activeOnly(state) {
   return {
     tournaments: (state?.tournaments ?? []).filter(t => t.status !== "archived"),
-    discordWebhookUrl: state?.discordWebhookUrl?.trim() || null,
+    ...normalizeAppSettings(state),
   };
 }
 
@@ -68,7 +69,7 @@ export async function loadMain() {
       ok: true,
       state: {
         tournaments: state.tournaments ?? [],
-        discordWebhookUrl: state.discordWebhookUrl?.trim() || null,
+        ...normalizeAppSettings(state),
       },
       version: data?.version ?? 0,
       exists: !!data,
@@ -133,9 +134,7 @@ export async function migrateArchivedFromMain(mainState, version) {
   const tournaments = mainState?.tournaments ?? [];
   const stuck = tournaments.filter(t => t.status === "archived");
   const active = tournaments.filter(t => t.status !== "archived");
-  const settings = {
-    discordWebhookUrl: mainState?.discordWebhookUrl?.trim() || null,
-  };
+  const settings = normalizeAppSettings(mainState);
   if (stuck.length === 0) {
     return { ok: true, state: { tournaments: active, ...settings }, version };
   }
