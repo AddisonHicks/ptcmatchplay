@@ -1348,19 +1348,29 @@ button {
   opacity: 0.4;
 }
 .sc-hole-btn.sel-A {
-  background: rgba(255, 255, 255, 0.18);
+  background: var(--accent);
   border-color: var(--accent);
-  color: var(--accent-text);
+  color: var(--text-on-accent);
 }
 .sc-hole-btn.sel-H {
-  background: var(--green-faint);
+  background: var(--green-strong);
   border-color: var(--green-strong);
-  color: var(--green-strong);
+  color: var(--text-on-accent);
 }
 .sc-hole-btn.sel-B {
-  background: var(--peach-faint);
+  background: var(--peach);
   border-color: var(--peach);
-  color: var(--peach);
+  color: var(--text-on-peach);
+}
+.sc-hole-btn.sel-A:hover:not(:disabled),
+.sc-hole-btn.sel-H:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--text-on-accent);
+}
+.sc-hole-btn.sel-B:hover:not(:disabled) {
+  border-color: var(--peach-hover);
+  background: var(--peach-hover);
+  color: var(--text-on-peach);
 }
 .sc-hole-result {
   font-family: "Montserrat", sans-serif;
