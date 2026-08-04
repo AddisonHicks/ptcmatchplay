@@ -37,11 +37,10 @@ export function ScorecardScreen({ tournament, matchId, onBack, onSubmitSide, isA
     if (ms.closed && i >= ms.holesPlayed) return;
     const next = [...holeResults];
     next[i] = next[i] === val ? null : val;
-    if (next[i] === null) {
-      // Clearing a hole leaves a gap — drop everything after it
-      for (let j = i + 1; j < 18; j++) next[j] = null;
-    } else {
-      // Keep later holes; trim anything past a new early close
+    // Clearing a hole only clears that hole — keep later entries so
+    // fixing an earlier hole doesn't wipe the rest of the card.
+    // If the match closes early after a set, drop unused holes past the close.
+    if (next[i] !== null) {
       const state = computeMatchState(next);
       if (state.closed) {
         for (let j = state.holesPlayed; j < 18; j++) next[j] = null;
