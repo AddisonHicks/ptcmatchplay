@@ -395,11 +395,7 @@ button {
 /* ─── Tabs / nav ──────────────────────────────────────────────────────────── */
 .mp-public-header {
   text-align: center;
-  border-bottom: 1px solid var(--border);
   background: var(--bg);
-  position: sticky;
-  top: 0;
-  z-index: 100;
 }
 .mp-public-header-brand {
   display: flex;
@@ -410,8 +406,13 @@ button {
   justify-content: center;
 }
 .mp-tourn-banner {
-  padding: 8px 16px 16px;
+  padding: 10px 16px 14px;
   text-align: center;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
 }
 .mp-tourn-banner-name {
   font-size: 18px;
