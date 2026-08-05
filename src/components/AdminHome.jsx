@@ -34,6 +34,7 @@ function AdminSetupForm({ onCreated, onCancel }) {
   const [numTeams, setNumTeams] = useState(4);
   const [numGroups, setNumGroups] = useState(2);
   const [teamNames, setTeamNames] = useState(Array(4).fill(""));
+  const [groupNames, setGroupNames] = useState(Array(2).fill(""));
   const [advancersPerGroup, setAdvancersPerGroup] = useState(1);
   const [mode, setMode] = useState("teams");
   const [style, setStyle] = useState("pool_bracket"); // pool_bracket | single_elim
@@ -43,6 +44,14 @@ function AdminSetupForm({ onCreated, onCancel }) {
   const minGroups = minGroupsForTeams(numTeams);
   const maxGroups = maxGroupsForTeams(numTeams);
   const maxAdvancers = maxAdvancersPerGroup(numTeams, numGroups);
+
+  function syncGroupNames(count) {
+    setGroupNames(prev => {
+      const next = [...prev];
+      while (next.length < count) next.push("");
+      return next.slice(0, count);
+    });
+  }
 
   function handleNumTeams(val) {
     const n = Math.max(4, Math.min(64, val % 2 === 0 ? val : val - 1));
@@ -56,18 +65,46 @@ function AdminSetupForm({ onCreated, onCancel }) {
       return next.slice(0, n);
     });
     setNumGroups(ng);
+    syncGroupNames(ng);
     setAdvancersPerGroup(a => clampAdvancers(n, ng, a));
   }
   function handleNumGroups(val) {
     const ng = Math.max(minGroups, Math.min(maxGroups, val));
     setNumGroups(ng);
+    syncGroupNames(ng);
     setAdvancersPerGroup(a => clampAdvancers(numTeams, ng, a));
   }
   function handleAdvancers(val) {
     setAdvancersPerGroup(clampAdvancers(numTeams, numGroups, val));
   }
   function updateTeamName(i,val){setTeamNames(prev=>{const n=[...prev];n[i]=val;return n;});setErrors(p=>{const e={...p};delete e[`team_${i}`];return e;});}
-  function validateStep1(){if(!tournName.trim()){setErrors({tournName:"Required"});return false;}return true;}
+  function updateGroupName(i, val) {
+    setGroupNames(prev => {
+      const next = [...prev];
+      next[i] = val;
+      return next;
+    });
+    setErrors(p => {
+      const e = { ...p };
+      delete e.groupNames;
+      return e;
+    });
+  }
+  function resolvedGroupName(i) {
+    const custom = groupNames[i]?.trim();
+    return custom || groupLabel(i);
+  }
+  function validateStep1() {
+    const e = {};
+    if (!tournName.trim()) e.tournName = "Required";
+    if (!isSingleElim) {
+      const resolved = Array.from({ length: numGroups }, (_, i) => resolvedGroupName(i));
+      const unique = new Set(resolved.map(n => n.toLowerCase()));
+      if (unique.size < resolved.length) e.groupNames = "Group names must be unique";
+    }
+    if (Object.keys(e).length) { setErrors(e); return false; }
+    return true;
+  }
   function validateStep2(){
     const e={};
     teamNames.forEach((n,i)=>{if(!n.trim())e[`team_${i}`]="required";});
@@ -160,6 +197,7 @@ function AdminSetupForm({ onCreated, onCancel }) {
       numTeams,
       numGroups: isSingleElim ? 0 : numGroups,
       teamNames,
+      groupNames: isSingleElim ? [] : groupNames,
       advancersPerGroup: isSingleElim ? 0 : clampAdvancers(numTeams, numGroups, advancersPerGroup),
       mode,
       style,
@@ -230,6 +268,24 @@ function AdminSetupForm({ onCreated, onCancel }) {
               <button className="mp-stepper-btn" onClick={()=>handleNumGroups(numGroups+1)} disabled={numGroups>=maxGroups}>+</button>
             </div>
             <div className="mp-stepper-hint">{minGroups}–{maxGroups} groups · {sizeSummary}</div>
+          </div>
+          <div className="mp-card">
+            <div className="mp-card-title">Group Names</div>
+            <div className="font-meta-sm t-muted mb-14">
+              Optional — leave blank to use Group A, Group B, …
+            </div>
+            {Array.from({ length: numGroups }, (_, i) => (
+              <div key={i} className="mp-team-input-wrap mb-10">
+                <span className="mp-team-num">{i + 1}</span>
+                <input
+                  className={`mp-input${errors.groupNames ? " error" : ""}`}
+                  value={groupNames[i] || ""}
+                  onChange={e => updateGroupName(i, e.target.value)}
+                  placeholder={groupLabel(i)}
+                />
+              </div>
+            ))}
+            {errors.groupNames && <div className="mp-error">⚠ {errors.groupNames}</div>}
           </div>
           <div className="mp-card">
             <div className="mp-card-title">{Label}s Advancing Per Group</div>
@@ -334,7 +390,7 @@ function AdminSetupForm({ onCreated, onCancel }) {
 
       {step===3&&!isSingleElim&&(()=>{
         const previewGroups=Array.from({length:numGroups},(_,i)=>({
-          id:`g${i}`,name:groupLabel(i),
+          id:`g${i}`,name:resolvedGroupName(i),
           members:shuffle(teamNames.map((n,i)=>({id:`t${i}`,name:n.trim()}))).filter((_,ti)=>ti%numGroups===i),
         }));
         return <>

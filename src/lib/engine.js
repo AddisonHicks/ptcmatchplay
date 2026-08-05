@@ -417,7 +417,7 @@ export function applyMatchToDb(db, tournId, matchId, updatedMatch, isGroupMatch)
 
 export function initTournament({
   name, numTeams, numGroups, teamNames, advancersPerGroup = 1,
-  mode = "teams", style = "pool_bracket",
+  mode = "teams", style = "pool_bracket", groupNames = [],
 }) {
   const teams = teamNames.map(n => ({ id: generateId(), name: n.trim(), groupId: null, status: "active" }));
 
@@ -437,7 +437,9 @@ export function initTournament({
   }
 
   const groups = Array.from({ length: numGroups }, (_, i) => ({
-    id: generateId(), name: groupLabel(i), index: i,
+    id: generateId(),
+    name: (typeof groupNames[i] === "string" && groupNames[i].trim()) ? groupNames[i].trim() : groupLabel(i),
+    index: i,
     round: 1, status: "playing", winnerId: null, winnerIds: [],
     eliminatedWithMatchesRemaining: [],
   }));
