@@ -986,24 +986,6 @@ button {
   padding: 4px 10px;
 }
 
-.mp-link-admin {
-  background: transparent;
-  border: none;
-  font-family: "Montserrat", sans-serif;
-  font-size: 8px;
-  color: var(--text-faint);
-  cursor: pointer;
-  letter-spacing: 2px;
-  opacity: 0.45;
-}
-.mp-link-admin:hover {
-  opacity: 0.8;
-}
-.mp-admin-footer {
-  text-align: center;
-  padding: 8px 0 20px;
-}
-
 /* ─── Badges ──────────────────────────────────────────────────────────────── */
 .badge {
   display: inline-block;
