@@ -1173,6 +1173,9 @@ button {
   background: var(--bg-card);
   border-bottom: 1px solid var(--border);
   padding: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 .sc-teams-row {
   display: flex;
