@@ -348,10 +348,6 @@ export default function App() {
         onEnsureArchives={ensureArchives}
         onSaveMatch={publicSaveMatch}
       />
-      {/* Hidden admin link in footer */}
-      <div className="mp-admin-footer">
-        <button onClick={() => { window.location.hash = "#/admin"; }} className="mp-link-admin">ADMIN</button>
-      </div>
     </div></>
   );
 }

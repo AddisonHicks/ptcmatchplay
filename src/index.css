@@ -395,11 +395,7 @@ button {
 /* ─── Tabs / nav ──────────────────────────────────────────────────────────── */
 .mp-public-header {
   text-align: center;
-  border-bottom: 1px solid var(--border);
   background: var(--bg);
-  position: sticky;
-  top: 0;
-  z-index: 100;
 }
 .mp-public-header-brand {
   display: flex;
@@ -410,8 +406,13 @@ button {
   justify-content: center;
 }
 .mp-tourn-banner {
-  padding: 8px 16px 16px;
+  padding: 10px 16px 14px;
   text-align: center;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
 }
 .mp-tourn-banner-name {
   font-size: 18px;
@@ -986,24 +987,6 @@ button {
   padding: 4px 10px;
 }
 
-.mp-link-admin {
-  background: transparent;
-  border: none;
-  font-family: "Montserrat", sans-serif;
-  font-size: 8px;
-  color: var(--text-faint);
-  cursor: pointer;
-  letter-spacing: 2px;
-  opacity: 0.45;
-}
-.mp-link-admin:hover {
-  opacity: 0.8;
-}
-.mp-admin-footer {
-  text-align: center;
-  padding: 8px 0 20px;
-}
-
 /* ─── Badges ──────────────────────────────────────────────────────────────── */
 .badge {
   display: inline-block;
@@ -1122,11 +1105,11 @@ button {
   margin-bottom: 6px;
 }
 .mp-pw-title span {
-  color: var(--text-muted);
+  color: var(--text-heading);
 }
 .mp-pw-sub {
   font-size: 13px;
-  color: var(--text-muted);
+  color: var(--text-heading);
   text-align: center;
   margin-bottom: 32px;
   font-family: "Montserrat", sans-serif;
@@ -1173,6 +1156,9 @@ button {
   background: var(--bg-card);
   border-bottom: 1px solid var(--border);
   padding: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 .sc-teams-row {
   display: flex;

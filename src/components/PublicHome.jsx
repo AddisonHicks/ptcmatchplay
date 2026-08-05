@@ -265,7 +265,17 @@ function PublicMatchesTab({ tournament, onOpenMatch }) {
 
 function PublicStandingsTab({ tournament }) {
   const { teams, groups, matches, groupMap } = tournament;
-  if (tournamentStyleOf(tournament) === "single_elim" || !groups?.length) {
+  const hasPools = tournamentStyleOf(tournament) !== "single_elim" && groups?.length > 0;
+
+  const defaultExpanded = hasPools ? groups.map(g => g.id) : [];
+
+  const [expandedIds, setExpandedIds] = useState(defaultExpanded);
+
+  function toggle(id) {
+    setExpandedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  }
+
+  if (!hasPools) {
     return (
       <div className="mp-page">
         <div className="mp-section-eyebrow">Knockout</div>
@@ -277,63 +287,89 @@ function PublicStandingsTab({ tournament }) {
       </div>
     );
   }
+
   return (
     <div className="mp-page">
       <div className="mp-section-eyebrow">Group Play</div>
-      <div className="mp-section-title">Standings</div>
-      {groups.map(g=>{
-        const teamIds=groupMap[g.id]||[];
-        const groupMatches=matches.filter(m=>m.groupId===g.id&&m.groupPhase&&!m.isBye);
-        const overall=computeGroupStats(teamIds,groupMatches);
-        const sortedTeams=sortByRecord(teamIds,overall).map(id=>teams.find(t=>t.id===id)).filter(Boolean);
+      <div className="mp-section-title mb-14">Standings</div>
+      {groups.map(g => {
+        const teamIds = groupMap[g.id] || [];
+        const groupMatches = matches.filter(m => m.groupId === g.id && m.groupPhase && !m.isBye);
+        const overall = computeGroupStats(teamIds, groupMatches);
+        const sortedTeams = sortByRecord(teamIds, overall).map(id => teams.find(t => t.id === id)).filter(Boolean);
         const tieNotes = groupAdvancementNotes(g, teamIds, teams, groupMatches);
+        const open = expandedIds.includes(g.id);
+        const leader = sortedTeams[0];
+        const leaderRecord = leader ? overall[leader.id] : null;
+        const leaderPlayed = leaderRecord && (leaderRecord.w + leaderRecord.l + leaderRecord.h) > 0;
         return (
-          <div key={g.id} className="mp-card">
-            <div className="flex items-center justify-between mb-14">
-              <div className="mp-card-title mb-0">{g.name}</div>
-              <span className={`badge ${g.status==="done"?"badge-advanced":"badge-active"}`}>
-                {g.status==="done"?"Done":`R${g.round}`}
-              </span>
-            </div>
-            <table className="mp-table mp-standings-table">
-              <thead>
-                <tr>
-                  <th className="mp-th"></th>
-                  <th className="mp-th center">W</th>
-                  <th className="mp-th center">L</th>
-                  <th className="mp-th center">H</th>
-                  <th className="mp-th center mp-th-pts">Pts</th>
-                  <th className="mp-th center mp-th-margin">+Margin</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedTeams.map(team=>{
-                  const r=overall[team.id];
-                  const isWinner=g.winnerIds?.includes(team.id)||team.id===g.winnerId;
-                  const isElim=team.status==="eliminated";
-                  const played = (r.w + r.l + r.h) > 0;
-                  return (
-                    <tr key={team.id}>
-                      <td className={`mp-td${isWinner?" is-winner":isElim?" is-elim":""}`}>{team.name}</td>
-                      {["w","l","h"].map(k=>(
-                        <td key={k} className={`mp-td center${k==="w"&&r.w>0?" is-win-stat":k==="l"&&r.l>0?" is-loss-stat":""}`}>{r[k]}</td>
-                      ))}
-                      <td className={`mp-td center mp-td-pts${played?" is-pts":""}`}>
-                        {played ? r.pts : "—"}
-                      </td>
-                      <td className={`mp-td center mp-td-margin${played?" is-margin":""}`}>
-                        {!played ? "—" : r.margin > 0 ? `+${r.margin}` : r.margin}
-                      </td>
+          <div key={g.id} className={`mp-match-accordion${open ? " is-open" : ""}`}>
+            <button
+              type="button"
+              className="mp-match-accordion-trigger"
+              aria-expanded={open}
+              onClick={() => toggle(g.id)}
+            >
+              <div className="flex-1 min-w-0 ta-left">
+                <div className="mp-match-accordion-title">{g.name}</div>
+                <div className="mp-match-accordion-meta">
+                  {g.status === "done"
+                    ? "Complete"
+                    : leaderPlayed
+                      ? `Led by ${leader.name}`
+                      : `${teamIds.length} ${tournament.mode === "players" ? "players" : "teams"}`}
+                </div>
+              </div>
+              <div className="flex items-center gap-8 shrink-0">
+                <span className={`badge ${g.status === "done" ? "badge-advanced" : "badge-active"}`}>
+                  {g.status === "done" ? "Done" : `R${g.round}`}
+                </span>
+                <span className="mp-match-accordion-chevron" aria-hidden="true" />
+              </div>
+            </button>
+            {open && (
+              <div className="mp-match-accordion-body">
+                <table className="mp-table mp-standings-table">
+                  <thead>
+                    <tr>
+                      <th className="mp-th"></th>
+                      <th className="mp-th center">W</th>
+                      <th className="mp-th center">L</th>
+                      <th className="mp-th center">H</th>
+                      <th className="mp-th center mp-th-pts">Pts</th>
+                      <th className="mp-th center mp-th-margin">+Margin</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-            {tieNotes.length > 0 && (
-              <div className="mp-standings-notes">
-                {tieNotes.map(note => (
-                  <div key={note} className="mp-standings-note">{note}</div>
-                ))}
+                  </thead>
+                  <tbody>
+                    {sortedTeams.map(team => {
+                      const r = overall[team.id];
+                      const isWinner = g.winnerIds?.includes(team.id) || team.id === g.winnerId;
+                      const isElim = team.status === "eliminated";
+                      const played = (r.w + r.l + r.h) > 0;
+                      return (
+                        <tr key={team.id}>
+                          <td className={`mp-td${isWinner ? " is-winner" : isElim ? " is-elim" : ""}`}>{team.name}</td>
+                          {["w", "l", "h"].map(k => (
+                            <td key={k} className={`mp-td center${k === "w" && r.w > 0 ? " is-win-stat" : k === "l" && r.l > 0 ? " is-loss-stat" : ""}`}>{r[k]}</td>
+                          ))}
+                          <td className={`mp-td center mp-td-pts${played ? " is-pts" : ""}`}>
+                            {played ? r.pts : "—"}
+                          </td>
+                          <td className={`mp-td center mp-td-margin${played ? " is-margin" : ""}`}>
+                            {!played ? "—" : r.margin > 0 ? `+${r.margin}` : r.margin}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                {tieNotes.length > 0 && (
+                  <div className="mp-standings-notes">
+                    {tieNotes.map(note => (
+                      <div key={note} className="mp-standings-note">{note}</div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
