@@ -1122,11 +1122,11 @@ button {
   margin-bottom: 6px;
 }
 .mp-pw-title span {
-  color: var(--text-muted);
+  color: var(--text-heading);
 }
 .mp-pw-sub {
   font-size: 13px;
-  color: var(--text-muted);
+  color: var(--text-heading);
   text-align: center;
   margin-bottom: 32px;
   font-family: "Montserrat", sans-serif;
