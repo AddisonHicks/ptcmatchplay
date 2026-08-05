@@ -267,11 +267,7 @@ function PublicStandingsTab({ tournament }) {
   const { teams, groups, matches, groupMap } = tournament;
   const hasPools = tournamentStyleOf(tournament) !== "single_elim" && groups?.length > 0;
 
-  const defaultExpanded = (() => {
-    if (!hasPools) return [];
-    const playing = groups.filter(g => g.status !== "done");
-    return (playing.length ? playing : groups.slice(0, 1)).map(g => g.id);
-  })();
+  const defaultExpanded = hasPools ? groups.map(g => g.id) : [];
 
   const [expandedIds, setExpandedIds] = useState(defaultExpanded);
 
