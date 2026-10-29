@@ -41,6 +41,8 @@ export default function BracketView({
   const isAdmin = mode === "admin";
 
   if ((phase !== "bracket" && phase !== "complete") || !bracket?.length) {
+    const poolsDone = (groups || []).length > 0 && (groups || []).every(g => g.status === "done");
+    const awaitingAdvance = phase === "pools_complete" || (phase === "group" && poolsDone);
     if (tournamentStyleOf(tournament) === "single_elim") {
       return (
         <div className={compact ? "" : "mp-page"}>
@@ -69,11 +71,15 @@ export default function BracketView({
         <div className="mp-card ta-center pad-xl">
           <div className="font-meta t-muted mb-12">{done}/{(groups || []).length} groups complete</div>
           <div className="font-meta-sm t-faint mb-16">
-            {awaitingSetup
+            {awaitingAdvance
               ? (isAdmin
-                ? "Pools are done — set the knockout pairings above."
-                : "Pools are done. The commissioner is setting the knockout bracket.")
-              : "Bracket unlocks when every group finishes."}
+                ? "Pools are done — start knockout and choose auto or manual seeding."
+                : "Pools are done. The commissioner will start the knockout bracket.")
+              : awaitingSetup
+                ? (isAdmin
+                  ? "Set the knockout pairings above."
+                  : "The commissioner is setting the knockout bracket.")
+                : "Bracket unlocks when every group finishes."}
           </div>
           {(groups || []).map(g => (
             <div key={g.id} className="mp-list-row">
