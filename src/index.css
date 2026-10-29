@@ -2338,14 +2338,27 @@ button.mp-viz-match.is-clickable:hover {
 .mp-assign-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+  justify-content: space-between;
 }
 .mp-assign-name {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
   font-size: 14px;
   font-weight: 600;
   color: var(--text-heading);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-right: 4px;
+}
+.mp-assign-row .mp-assign-select {
+  width: auto;
+  min-width: 7.5rem;
+  max-width: 9.5rem;
+  flex: 0 0 auto;
+  padding: 8px 28px 8px 10px;
+  font-size: 12px;
 }
 
 .mp-bracket-setup {

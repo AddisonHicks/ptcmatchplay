@@ -593,7 +593,7 @@ function AdminSetupForm({ onCreated, onCancel }) {
                   <div key={i} className="mp-assign-row">
                     <div className="mp-assign-name">{name.trim() || `${Label} ${i + 1}`}</div>
                     <select
-                      className="mp-select"
+                      className="mp-select mp-assign-select"
                       value=""
                       onChange={e => {
                         const gi = Number(e.target.value);
