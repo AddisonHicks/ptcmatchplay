@@ -315,7 +315,7 @@ export function generateSingleElimBracket(teamIds) {
   return matches;
 }
 
-export function generateBracket(groups) {
+export function collectAdvancers(groups) {
   const sortedGroups = [...groups].sort((a, b) => a.index - b.index);
   const advancersPerGroup = sortedGroups[0]?.winnerIds?.length || 1;
   const winners = [];
@@ -325,7 +325,31 @@ export function generateBracket(groups) {
       if (id) winners.push(id);
     });
   }
-  return generateSingleElimBracket(winners);
+  return winners;
+}
+
+export function generateBracket(groups) {
+  return generateSingleElimBracket(collectAdvancers(groups));
+}
+
+/** Build round-1 matches from explicit pairings. Each slot: { teamA, teamB } (teamB null = bye). */
+export function generateBracketFromSlots(slots) {
+  return (slots || []).map((s, i) => makeBracketMatch(i, s.teamA, s.teamB || null));
+}
+
+/** Apply admin-built R1 slots and enter knockout. */
+export function confirmBracketSetup(tournament, slots) {
+  if (!tournament || tournament.phase !== "bracket_setup") return tournament;
+  const bracket = generateBracketFromSlots(slots);
+  if (!bracket.length) return tournament;
+  let next = {
+    ...tournament,
+    phase: "bracket",
+    bracketPhase: true,
+    bracket,
+  };
+  next = advanceBracketIfReady(next);
+  return next;
 }
 
 export function advanceBracketIfReady(tournament) {
@@ -385,11 +409,26 @@ export function advanceGroupIfReady(tournament, groupId) {
   });
   const updatedMatches = [...tournament.matches, ...newMatches];
   const allGroupsDone = updatedGroups.every(g => g.status === "done");
+  const manualBracket = tournament.bracketSeeding === "manual";
   let bracketMatches = tournament.bracket || [];
-  if (allGroupsDone && !tournament.bracketPhase) bracketMatches = generateBracket(updatedGroups, updatedTeams);
+  let phase = tournament.phase;
+  let bracketPhase = tournament.bracketPhase;
+
+  if (allGroupsDone && !tournament.bracketPhase) {
+    if (manualBracket) {
+      phase = "bracket_setup";
+      bracketPhase = false;
+      bracketMatches = [];
+    } else {
+      bracketMatches = generateBracket(updatedGroups);
+      phase = "bracket";
+      bracketPhase = true;
+    }
+  }
+
   return {
     ...tournament, groups: updatedGroups, teams: updatedTeams, matches: updatedMatches,
-    phase: allGroupsDone ? "bracket" : "group", bracketPhase: allGroupsDone, bracket: bracketMatches,
+    phase, bracketPhase, bracket: bracketMatches,
   };
 }
 
@@ -418,6 +457,7 @@ export function applyMatchToDb(db, tournId, matchId, updatedMatch, isGroupMatch)
 export function initTournament({
   name, numTeams, numGroups, teamNames, advancersPerGroup = 1,
   mode = "teams", style = "pool_bracket", groupNames = [],
+  assignmentMode = "random", groupAssignments = null, bracketSeeding = "auto",
 }) {
   const teams = teamNames.map(n => ({ id: generateId(), name: n.trim(), groupId: null, status: "active" }));
 
@@ -443,10 +483,21 @@ export function initTournament({
     round: 1, status: "playing", winnerId: null, winnerIds: [],
     eliminatedWithMatchesRemaining: [],
   }));
-  const shuffled = shuffle(teams);
   const groupMap = {};
   groups.forEach(g => { groupMap[g.id] = []; });
-  shuffled.forEach((t, i) => { groupMap[groups[i % numGroups].id].push(t.id); });
+
+  const useManual = assignmentMode === "manual" && Array.isArray(groupAssignments) && groupAssignments.length === teams.length;
+  if (useManual) {
+    teams.forEach((t, i) => {
+      const gi = groupAssignments[i];
+      if (typeof gi !== "number" || gi < 0 || gi >= numGroups) return;
+      groupMap[groups[gi].id].push(t.id);
+    });
+  } else {
+    const shuffled = shuffle(teams);
+    shuffled.forEach((t, i) => { groupMap[groups[i % numGroups].id].push(t.id); });
+  }
+
   const updatedTeams = teams.map(t => ({
     ...t, groupId: groups.find(g => groupMap[g.id].includes(t.id))?.id || null,
   }));
@@ -459,6 +510,8 @@ export function initTournament({
   return {
     id: generateId(), name, mode, style: "pool_bracket", phase: "group", status: "active",
     numTeams, numGroups, advancersPerGroup,
+    assignmentMode: useManual ? "manual" : "random",
+    bracketSeeding: bracketSeeding === "manual" ? "manual" : "auto",
     teams: updatedTeams, groups, groupMap,
     matches, bracket: [], bracketPhase: false,
     championId: null, createdAt: new Date().toISOString(),

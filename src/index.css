@@ -2304,6 +2304,66 @@ button.mp-viz-match.is-clickable:hover {
   color: var(--text);
   font-family: "Montserrat", sans-serif;
 }
+.mp-chip-removable {
+  cursor: pointer;
+  background: transparent;
+  color: inherit;
+}
+.mp-chip-removable:hover {
+  border-color: rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.mp-select {
+  width: 100%;
+  background: var(--bg-white);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--text);
+  font-family: "Montserrat", sans-serif;
+}
+.mp-select:focus {
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.18);
+}
+
+.mp-assign-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.mp-assign-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.mp-assign-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-heading);
+}
+
+.mp-bracket-setup {
+  margin-top: 16px;
+}
+.mp-bracket-slot {
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.mp-bracket-slot:last-of-type {
+  border-bottom: none;
+}
+.mp-bracket-slot-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .mp-group-preview-title {
   font-family: "Montserrat", sans-serif;
   font-size: 10px;

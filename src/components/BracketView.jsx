@@ -57,6 +57,7 @@ export default function BracketView({
       );
     }
     const done = (groups || []).filter(g => g.status === "done").length;
+    const awaitingSetup = phase === "bracket_setup";
     return (
       <div className={compact ? "" : "mp-page"}>
         {!compact && (
@@ -67,7 +68,13 @@ export default function BracketView({
         )}
         <div className="mp-card ta-center pad-xl">
           <div className="font-meta t-muted mb-12">{done}/{(groups || []).length} groups complete</div>
-          <div className="font-meta-sm t-faint mb-16">Bracket unlocks when every group finishes.</div>
+          <div className="font-meta-sm t-faint mb-16">
+            {awaitingSetup
+              ? (isAdmin
+                ? "Pools are done — set the knockout pairings above."
+                : "Pools are done. The commissioner is setting the knockout bracket.")
+              : "Bracket unlocks when every group finishes."}
+          </div>
           {(groups || []).map(g => (
             <div key={g.id} className="mp-list-row">
               <span className="font-meta-sm t-body">{g.name}</span>

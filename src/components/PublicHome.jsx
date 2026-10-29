@@ -207,10 +207,10 @@ function PublicMatchesTab({ tournament, onOpenMatch }) {
       {hasPools && (
         <>
           <div className="mp-section-eyebrow">
-            {tournament.phase === "bracket" ? "Pool Play · History" : "Pool Play"}
+            {tournament.phase === "bracket" || tournament.phase === "bracket_setup" ? "Pool Play · History" : "Pool Play"}
           </div>
           <div className="mp-section-title mb-14">
-            {tournament.phase === "bracket" ? "Groups" : "Matches"}
+            {tournament.phase === "bracket" || tournament.phase === "bracket_setup" ? "Groups" : "Matches"}
           </div>
           {groups.map(g => {
             const gMatches = tournament.matches.filter(m => m.groupId === g.id && !m.isBye);
@@ -252,9 +252,16 @@ function PublicMatchesTab({ tournament, onOpenMatch }) {
         </>
       )}
 
+      {tournament.phase === "bracket_setup" && (
+        <div className="mp-card ta-center pad-lg mt-8">
+          <div className="font-meta t-muted mb-8">Pools complete</div>
+          <div className="font-meta-sm t-faint">The commissioner is setting the knockout bracket.</div>
+        </div>
+      )}
+
       {hasBracket && <KnockoutSection />}
 
-      {!hasPools && !hasBracket && (
+      {!hasPools && !hasBracket && tournament.phase !== "bracket_setup" && (
         <div className="mp-card ta-center pad-lg">
           <div className="font-meta t-muted">No matches yet</div>
         </div>
