@@ -850,8 +850,8 @@ button {
   font-family: "Montserrat", sans-serif;
 }
 .mp-team-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 10px;
   margin-bottom: 20px;
 }
@@ -2571,9 +2571,6 @@ button.mp-viz-match.is-clickable:hover {
 }
 
 @media (max-width: 400px) {
-  .mp-team-grid {
-    grid-template-columns: 1fr;
-  }
   .mp-section-title {
     font-size: 22px;
   }
