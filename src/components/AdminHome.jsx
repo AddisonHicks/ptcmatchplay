@@ -39,13 +39,20 @@ function AdminSetupForm({ onCreated, onCancel }) {
   const [mode, setMode] = useState("teams");
   const [style, setStyle] = useState("pool_bracket"); // pool_bracket | single_elim
   const [assignmentMode, setAssignmentMode] = useState("random"); // random | manual
+  const [elimSeeding, setElimSeeding] = useState("random"); // random | manual (single elim only)
   const [groupAssignments, setGroupAssignments] = useState(Array(4).fill(null)); // group index per team
+  const [elimBracketSlots, setElimBracketSlots] = useState([
+    { teamA: null, teamB: null },
+    { teamA: null, teamB: null },
+  ]);
   const [errors, setErrors] = useState({});
 
   const isSingleElim = style === "single_elim";
   const isManualAssign = !isSingleElim && assignmentMode === "manual";
-  const reviewStep = isManualAssign ? 4 : 3;
+  const isManualElimSeed = isSingleElim && elimSeeding === "manual";
+  const reviewStep = isManualAssign || isManualElimSeed ? 4 : 3;
   const assignStep = isManualAssign ? 3 : null;
+  const elimSeedStep = isManualElimSeed ? 3 : null;
   const minGroups = minGroupsForTeams(numTeams);
   const maxGroups = maxGroupsForTeams(numTeams);
   const maxAdvancers = maxAdvancersPerGroup(numTeams, numGroups);
@@ -67,6 +74,18 @@ function AdminSetupForm({ onCreated, onCancel }) {
       );
     });
   }
+  function syncElimBracketSlots(teamCount) {
+    const size = Math.pow(2, Math.ceil(Math.log2(Math.max(teamCount, 2))));
+    const matchCount = size / 2;
+    setElimBracketSlots(prev => {
+      const next = prev.slice(0, matchCount).map(s => ({ teamA: s.teamA, teamB: s.teamB }));
+      while (next.length < matchCount) next.push({ teamA: null, teamB: null });
+      return next.map(s => ({
+        teamA: typeof s.teamA === "number" && s.teamA >= 0 && s.teamA < teamCount ? s.teamA : null,
+        teamB: typeof s.teamB === "number" && s.teamB >= 0 && s.teamB < teamCount ? s.teamB : null,
+      }));
+    });
+  }
   function handleNumTeams(val) {
     const n = Math.max(4, Math.min(64, val % 2 === 0 ? val : val - 1));
     const nextMinG = minGroupsForTeams(n);
@@ -81,6 +100,7 @@ function AdminSetupForm({ onCreated, onCancel }) {
     setNumGroups(ng);
     syncGroupNames(ng);
     syncGroupAssignments(n, ng);
+    syncElimBracketSlots(n);
     setAdvancersPerGroup(a => clampAdvancers(n, ng, a));
   }
   function handleNumGroups(val) {
@@ -147,6 +167,51 @@ function AdminSetupForm({ onCreated, onCancel }) {
     if(unique.size<teamNames.filter(n=>n.trim()).length)e.duplicate=`${mode==="players"?"Player":"Team"} names must be unique`;
     if(Object.keys(e).length){setErrors(e);return false;}return true;
   }
+  function teamLabelAt(i) {
+    return teamNames[i]?.trim() || `${Label} ${i + 1}`;
+  }
+  function setElimSlotSide(slotIndex, side, rawValue) {
+    const value = rawValue === "" || rawValue == null ? null : Number(rawValue);
+    setElimBracketSlots(prev => {
+      const next = prev.map(s => ({ ...s }));
+      next[slotIndex] = {
+        ...next[slotIndex],
+        [side]: Number.isNaN(value) ? null : value,
+      };
+      return next;
+    });
+    setErrors(p => {
+      const e = { ...p };
+      delete e.elimSlots;
+      return e;
+    });
+  }
+  function validateElimBracketSlots() {
+    const e = {};
+    const used = new Set();
+    for (let i = 0; i < elimBracketSlots.length; i++) {
+      const { teamA, teamB } = elimBracketSlots[i];
+      if (teamA === null || teamA === undefined) {
+        e.elimSlots = `Match ${i + 1} needs a ${label} on side A`;
+        break;
+      }
+      if (used.has(teamA) || (teamB != null && used.has(teamB))) {
+        e.elimSlots = `Each ${label} can only appear once in the bracket`;
+        break;
+      }
+      if (teamB != null && teamA === teamB) {
+        e.elimSlots = `Match ${i + 1} cannot use the same ${label} twice`;
+        break;
+      }
+      used.add(teamA);
+      if (teamB != null) used.add(teamB);
+    }
+    if (!e.elimSlots && used.size !== numTeams) {
+      e.elimSlots = `Assign all ${numTeams} ${label}s across round 1 (use Bye where needed)`;
+    }
+    if (Object.keys(e).length) { setErrors(e); return false; }
+    return true;
+  }
   function validateAssignments() {
     const e = {};
     const unassigned = groupAssignments.filter(gi => gi === null || gi === undefined).length;
@@ -167,7 +232,22 @@ function AdminSetupForm({ onCreated, onCancel }) {
   const Label=mode==="players"?"Player":"Team";
   const setupSteps = isManualAssign
     ? ["Configure", `${Label}s`, "Groups", "Review"]
-    : ["Configure", `${Label}s`, "Review"];
+    : isManualElimSeed
+      ? ["Configure", `${Label}s`, "Seed", "Review"]
+      : ["Configure", `${Label}s`, "Review"];
+
+  const elimSlotsUsed = new Set();
+  elimBracketSlots.forEach(s => {
+    if (s.teamA != null) elimSlotsUsed.add(s.teamA);
+    if (s.teamB != null) elimSlotsUsed.add(s.teamB);
+  });
+  function elimSlotOptions(currentIndex) {
+    const remaining = [];
+    for (let i = 0; i < numTeams; i++) {
+      if (!elimSlotsUsed.has(i) || i === currentIndex) remaining.push(i);
+    }
+    return remaining;
+  }
 
   // Pool + bracket checks
   const totalAdvancers=numGroups*advancersPerGroup;
@@ -256,6 +336,8 @@ function AdminSetupForm({ onCreated, onCancel }) {
       style,
       assignmentMode: isSingleElim ? "random" : assignmentMode,
       groupAssignments: isManualAssign ? groupAssignments : null,
+      elimSeeding: isSingleElim ? elimSeeding : "random",
+      elimBracketSlots: isManualElimSeed ? elimBracketSlots : null,
     }));
   }
 
@@ -405,30 +487,46 @@ function AdminSetupForm({ onCreated, onCancel }) {
         </>}
 
         {isSingleElim && (
-          <div className="mp-card">
-            <div className="mp-card-title">Bracket Preview</div>
-            <div className={`mp-callout-box${hasCleanElim?" is-clean":" is-warn"}`}>
-              <div className="mp-callout-box-head">
-                <span className="font-meta">{hasCleanElim?"✓":"⚠"}</span>
-                <span className={`font-meta fw-700${hasCleanElim?" t-win":" t-accent"}`}>
-                  {hasCleanElim?"Clean bracket · No byes":`Uneven field · ${elimByes} bye${elimByes===1?"":"s"}`}
-                </span>
+          <>
+            <div className="mp-card">
+              <div className="mp-card-title">Bracket Seeding</div>
+              <div className="mp-choice-row">
+                {[
+                  { val: "random", title: "Random seed", sub: "Shuffle opening pairings on Start" },
+                  { val: "manual", title: "Manual seed", sub: "Set round-1 matchups yourself" },
+                ].map(({ val, title, sub }) => (
+                  <button key={val} type="button" onClick={() => setElimSeeding(val)} className={`mp-choice${elimSeeding === val ? " is-active" : ""}`}>
+                    <div className="mp-choice-title">{title}</div>
+                    <div className="mp-choice-sub">{sub}</div>
+                  </button>
+                ))}
               </div>
-              {[
-                `${numTeams} ${label}s into a ${elimBracketSize}-slot bracket`,
-                elimStageLabel,
-                "Seed randomly shuffled on Start",
-              ].map(t=>(
-                <div key={t} className="flex items-center gap-8 mb-6">
-                  <div className={`font-meta shrink-0${hasCleanElim?" t-win":" t-accent"}`}>—</div>
-                  <div className="font-meta-sm t-body">{t}</div>
-                </div>
-              ))}
-              {!hasCleanElim&&elimSuggestion&&(
-                <div className="mp-callout-box-foot font-meta-sm t-accent">💡 {elimSuggestion}</div>
-              )}
             </div>
-          </div>
+            <div className="mp-card">
+              <div className="mp-card-title">Bracket Preview</div>
+              <div className={`mp-callout-box${hasCleanElim?" is-clean":" is-warn"}`}>
+                <div className="mp-callout-box-head">
+                  <span className="font-meta">{hasCleanElim?"✓":"⚠"}</span>
+                  <span className={`font-meta fw-700${hasCleanElim?" t-win":" t-accent"}`}>
+                    {hasCleanElim?"Clean bracket · No byes":`Uneven field · ${elimByes} bye${elimByes===1?"":"s"}`}
+                  </span>
+                </div>
+                {[
+                  `${numTeams} ${label}s into a ${elimBracketSize}-slot bracket`,
+                  elimStageLabel,
+                  isManualElimSeed ? "You will set opening pairings on the next steps" : "Seed randomly shuffled on Start",
+                ].map(t=>(
+                  <div key={t} className="flex items-center gap-8 mb-6">
+                    <div className={`font-meta shrink-0${hasCleanElim?" t-win":" t-accent"}`}>—</div>
+                    <div className="font-meta-sm t-body">{t}</div>
+                  </div>
+                ))}
+                {!hasCleanElim&&elimSuggestion&&(
+                  <div className="mp-callout-box-foot font-meta-sm t-accent">💡 {elimSuggestion}</div>
+                )}
+              </div>
+            </div>
+          </>
         )}
 
         <div className="mp-modal-actions">
@@ -459,13 +557,17 @@ function AdminSetupForm({ onCreated, onCancel }) {
           <button className="mp-btn mp-btn-ghost flex-1" onClick={()=>setStep(1)}>← Back</button>
           <button className="mp-btn mp-btn-primary flex-2" onClick={()=>{
             if (!validateStep2()) return;
-            setStep(isManualAssign ? 3 : reviewStep);
+            if (isManualAssign) setStep(3);
+            else if (isManualElimSeed) setStep(3);
+            else setStep(reviewStep);
           }}>
             {isManualAssign
               ? `Assign Groups →`
-              : isSingleElim
-                ? "Review Bracket →"
-                : "Review Draw →"}
+              : isManualElimSeed
+                ? "Seed Bracket →"
+                : isSingleElim
+                  ? "Review Bracket →"
+                  : "Review Draw →"}
           </button>
         </div>
       </>}
@@ -547,6 +649,50 @@ function AdminSetupForm({ onCreated, onCancel }) {
         </div>
       </>}
 
+      {step===elimSeedStep&&isManualElimSeed&&<>
+        <div className="mp-section-eyebrow">Bracket</div>
+        <div className="mp-section-title">Seed opening round</div>
+        <div className="mp-section-sub">
+          {elimBracketSize / 2} round-1 matches · {numTeams} {label}s
+          {elimByes > 0 ? ` · ${elimByes} bye${elimByes === 1 ? "" : "s"}` : ""}
+        </div>
+        {errors.elimSlots && <div className="mp-error mb-12">⚠ {errors.elimSlots}</div>}
+        {elimBracketSlots.map((slot, i) => (
+          <div key={i} className="mp-card mp-bracket-slot">
+            <div className="font-label t-faint mb-8">Match {i + 1}</div>
+            <div className="mp-bracket-slot-row">
+              <select
+                className="mp-select flex-1"
+                value={slot.teamA ?? ""}
+                onChange={e => setElimSlotSide(i, "teamA", e.target.value)}
+              >
+                <option value="">Side A…</option>
+                {elimSlotOptions(slot.teamA).map(ti => (
+                  <option key={ti} value={ti}>{teamLabelAt(ti)}</option>
+                ))}
+              </select>
+              <div className="font-meta t-muted">vs</div>
+              <select
+                className="mp-select flex-1"
+                value={slot.teamB ?? ""}
+                onChange={e => setElimSlotSide(i, "teamB", e.target.value)}
+              >
+                <option value="">Bye</option>
+                {elimSlotOptions(slot.teamB).map(ti => (
+                  <option key={ti} value={ti}>{teamLabelAt(ti)}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        ))}
+        <div className="mp-modal-actions">
+          <button className="mp-btn mp-btn-ghost flex-1" onClick={() => setStep(2)}>← Back</button>
+          <button className="mp-btn mp-btn-primary flex-2" onClick={() => { if (validateElimBracketSlots()) setStep(4); }}>
+            Review Bracket →
+          </button>
+        </div>
+      </>}
+
       {step===reviewStep&&!isSingleElim&&(()=>{
         const previewGroups = Array.from({ length: numGroups }, (_, i) => ({
           id: `g${i}`,
@@ -613,18 +759,30 @@ function AdminSetupForm({ onCreated, onCancel }) {
       })()}
 
       {step===reviewStep&&isSingleElim&&(()=>{
-        const previewNames=shuffle(teamNames.map(n=>n.trim()));
-        const slots=[...previewNames];
-        while (slots.length < elimBracketSize) slots.push(null);
-        const previewPairs=Array.from({length:elimBracketSize/2},(_,i)=>({
-          a: slots[i*2], b: slots[i*2+1],
-        }));
+        const previewPairs = isManualElimSeed
+          ? elimBracketSlots.map(s => ({
+              a: s.teamA != null ? teamLabelAt(s.teamA) : "—",
+              b: s.teamB != null ? teamLabelAt(s.teamB) : "Bye",
+            }))
+          : (() => {
+              const previewNames = shuffle(teamNames.map(n => n.trim()));
+              const slots = [...previewNames];
+              while (slots.length < elimBracketSize) slots.push(null);
+              return Array.from({ length: elimBracketSize / 2 }, (_, i) => ({
+                a: slots[i * 2],
+                b: slots[i * 2 + 1],
+              }));
+            })();
         return <>
           <div className="mp-section-eyebrow">Review</div>
           <div className="mp-section-title">Opening Round</div>
-          <div className="mp-section-sub">Bracket is randomly seeded on Start. Sample pairings below.</div>
+          <div className="mp-section-sub">
+            {isManualElimSeed
+              ? "Round-1 pairings below. Tap Start to confirm."
+              : "Bracket is randomly seeded on Start. Sample pairings below."}
+          </div>
           <div className="mp-card">
-            <div className="mp-card-title">Round 1 preview</div>
+            <div className="mp-card-title">Round 1 {isManualElimSeed ? "pairings" : "preview"}</div>
             {previewPairs.map((p,i)=>(
               <div key={i} className="mp-admin-row is-schedule">
                 <div className="mp-match-name">{p.a||"Bye"}</div>
@@ -645,9 +803,9 @@ function AdminSetupForm({ onCreated, onCancel }) {
             <div className="font-meta-sm t-body">{elimStageLabel}</div>
             {!hasCleanElim&&elimSuggestion&&<div className="font-meta-sm t-accent mt-8">💡 {elimSuggestion}</div>}
           </div>
-          <div className="mp-info-box">⚠ Seed is re-randomized on Start. This is a preview.</div>
+          {!isManualElimSeed && <div className="mp-info-box">⚠ Seed is re-randomized on Start. This is a preview.</div>}
           <div className="mp-modal-actions">
-            <button className="mp-btn mp-btn-ghost flex-1" onClick={()=>setStep(2)}>← Back</button>
+            <button className="mp-btn mp-btn-ghost flex-1" onClick={()=>setStep(isManualElimSeed ? 3 : 2)}>← Back</button>
             <button className="mp-btn mp-btn-primary flex-2" onClick={startTournament}>Start Tournament →</button>
           </div>
         </>;
@@ -1297,6 +1455,9 @@ function AdminTournamentDetail({ tournament, onSaveMatch, onUpdateTournament, on
                     ["Advancers/Group",tournament.advancersPerGroup],
                     ["Group draw", tournament.assignmentMode === "manual" ? "Manual" : "Random"],
                   ]
+                : []),
+              ...(tournamentStyleOf(tournament)==="single_elim"
+                ? [["Bracket seed", tournament.elimSeeding === "manual" ? "Manual" : "Random"]]
                 : []),
               ["Created",new Date(tournament.createdAt).toLocaleDateString()],
             ].map(([k,v])=>(

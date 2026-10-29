@@ -489,17 +489,33 @@ export function initTournament({
   name, numTeams, numGroups, teamNames, advancersPerGroup = 1,
   mode = "teams", style = "pool_bracket", groupNames = [],
   assignmentMode = "random", groupAssignments = null,
+  elimSeeding = "random", elimBracketSlots = null,
 }) {
   const teams = teamNames.map(n => ({ id: generateId(), name: n.trim(), groupId: null, status: "active" }));
 
   if (style === "single_elim") {
-    const shuffled = shuffle(teams);
-    const bracket = generateSingleElimBracket(shuffled.map(t => t.id));
+    const useManualElim =
+      elimSeeding === "manual"
+      && Array.isArray(elimBracketSlots)
+      && elimBracketSlots.length > 0;
+    let bracket;
+    let roster = teams;
+    if (useManualElim) {
+      const slots = elimBracketSlots.map(s => ({
+        teamA: typeof s.teamA === "number" ? teams[s.teamA]?.id : null,
+        teamB: typeof s.teamB === "number" ? teams[s.teamB]?.id : null,
+      }));
+      bracket = generateBracketFromSlots(slots);
+    } else {
+      roster = shuffle(teams);
+      bracket = generateSingleElimBracket(roster.map(t => t.id));
+    }
     let tournament = {
       id: generateId(), name, mode, style: "single_elim",
       phase: "bracket", status: "active",
       numTeams, numGroups: 0, advancersPerGroup: 0,
-      teams: shuffled, groups: [], groupMap: {},
+      elimSeeding: useManualElim ? "manual" : "random",
+      teams: roster, groups: [], groupMap: {},
       matches: [], bracket, bracketPhase: true,
       championId: null, createdAt: new Date().toISOString(),
     };
