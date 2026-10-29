@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Toast } from "./Toast.jsx";
 import BracketView from "./BracketView.jsx";
 import AdminAppSettings from "./AdminAppSettings.jsx";
-import { initTournament, submissionsMatch } from "../lib/engine.js";
+import { initTournament, submissionsMatch, collectAdvancers, confirmBracketSetup, generateBracket } from "../lib/engine.js";
 import {
   nowIso,
   localDateInputValue,
@@ -38,9 +38,15 @@ function AdminSetupForm({ onCreated, onCancel }) {
   const [advancersPerGroup, setAdvancersPerGroup] = useState(1);
   const [mode, setMode] = useState("teams");
   const [style, setStyle] = useState("pool_bracket"); // pool_bracket | single_elim
+  const [assignmentMode, setAssignmentMode] = useState("random"); // random | manual
+  const [bracketSeeding, setBracketSeeding] = useState("auto"); // auto | manual
+  const [groupAssignments, setGroupAssignments] = useState(Array(4).fill(null)); // group index per team
   const [errors, setErrors] = useState({});
 
   const isSingleElim = style === "single_elim";
+  const isManualAssign = !isSingleElim && assignmentMode === "manual";
+  const reviewStep = isManualAssign ? 4 : 3;
+  const assignStep = isManualAssign ? 3 : null;
   const minGroups = minGroupsForTeams(numTeams);
   const maxGroups = maxGroupsForTeams(numTeams);
   const maxAdvancers = maxAdvancersPerGroup(numTeams, numGroups);
@@ -53,6 +59,15 @@ function AdminSetupForm({ onCreated, onCancel }) {
     });
   }
 
+  function syncGroupAssignments(teamCount, groupCount) {
+    setGroupAssignments(prev => {
+      const next = [...prev];
+      while (next.length < teamCount) next.push(null);
+      return next.slice(0, teamCount).map(gi =>
+        typeof gi === "number" && gi >= 0 && gi < groupCount ? gi : null
+      );
+    });
+  }
   function handleNumTeams(val) {
     const n = Math.max(4, Math.min(64, val % 2 === 0 ? val : val - 1));
     const nextMinG = minGroupsForTeams(n);
@@ -66,13 +81,34 @@ function AdminSetupForm({ onCreated, onCancel }) {
     });
     setNumGroups(ng);
     syncGroupNames(ng);
+    syncGroupAssignments(n, ng);
     setAdvancersPerGroup(a => clampAdvancers(n, ng, a));
   }
   function handleNumGroups(val) {
     const ng = Math.max(minGroups, Math.min(maxGroups, val));
     setNumGroups(ng);
     syncGroupNames(ng);
+    syncGroupAssignments(numTeams, ng);
     setAdvancersPerGroup(a => clampAdvancers(numTeams, ng, a));
+  }
+  function assignTeamToGroup(teamIndex, groupIndex) {
+    setGroupAssignments(prev => {
+      const next = [...prev];
+      next[teamIndex] = groupIndex;
+      return next;
+    });
+    setErrors(p => {
+      const e = { ...p };
+      delete e.assignments;
+      return e;
+    });
+  }
+  function clearTeamAssignment(teamIndex) {
+    setGroupAssignments(prev => {
+      const next = [...prev];
+      next[teamIndex] = null;
+      return next;
+    });
   }
   function handleAdvancers(val) {
     setAdvancersPerGroup(clampAdvancers(numTeams, numGroups, val));
@@ -112,9 +148,27 @@ function AdminSetupForm({ onCreated, onCancel }) {
     if(unique.size<teamNames.filter(n=>n.trim()).length)e.duplicate=`${mode==="players"?"Player":"Team"} names must be unique`;
     if(Object.keys(e).length){setErrors(e);return false;}return true;
   }
+  function validateAssignments() {
+    const e = {};
+    const unassigned = groupAssignments.filter(gi => gi === null || gi === undefined).length;
+    if (unassigned > 0) e.assignments = `Assign every ${mode === "players" ? "player" : "team"} to a group`;
+    const counts = Array.from({ length: numGroups }, () => 0);
+    groupAssignments.forEach(gi => {
+      if (typeof gi === "number" && gi >= 0 && gi < numGroups) counts[gi]++;
+    });
+    const tooSmall = counts.findIndex(c => c < 2);
+    if (tooSmall >= 0 && !e.assignments) {
+      e.assignments = `${resolvedGroupName(tooSmall)} needs at least 2 ${mode === "players" ? "players" : "teams"}`;
+    }
+    if (Object.keys(e).length) { setErrors(e); return false; }
+    return true;
+  }
 
   const label=mode==="players"?"player":"team";
   const Label=mode==="players"?"Player":"Team";
+  const setupSteps = isManualAssign
+    ? ["Configure", `${Label}s`, "Groups", "Review"]
+    : ["Configure", `${Label}s`, "Review"];
 
   // Pool + bracket checks
   const totalAdvancers=numGroups*advancersPerGroup;
@@ -201,13 +255,22 @@ function AdminSetupForm({ onCreated, onCancel }) {
       advancersPerGroup: isSingleElim ? 0 : clampAdvancers(numTeams, numGroups, advancersPerGroup),
       mode,
       style,
+      assignmentMode: isSingleElim ? "random" : assignmentMode,
+      groupAssignments: isManualAssign ? groupAssignments : null,
+      bracketSeeding: isSingleElim ? "auto" : bracketSeeding,
     }));
   }
+
+  const assignmentCounts = Array.from({ length: numGroups }, () => 0);
+  groupAssignments.forEach(gi => {
+    if (typeof gi === "number" && gi >= 0 && gi < numGroups) assignmentCounts[gi]++;
+  });
+  const unassignedCount = groupAssignments.filter(gi => gi === null || gi === undefined).length;
 
   return (
     <div className="mp-page">
       <div className="mp-steps">
-        {["Configure",`${Label}s`,"Review"].map((lbl,i)=>(
+        {setupSteps.map((lbl,i)=>(
           <div key={lbl} className="mp-step">
             <div className={`mp-step-bar${i<step?" is-done":""}${i<step-1?" is-past":""}`}/>
             <div className={`mp-step-label${i===step-1?" is-current":""}`}>{lbl}</div>
@@ -327,6 +390,34 @@ function AdminSetupForm({ onCreated, onCancel }) {
               )}
             </div>
           </div>
+          <div className="mp-card">
+            <div className="mp-card-title">Group Assignment</div>
+            <div className="mp-choice-row">
+              {[
+                { val: "random", title: "Random draw", sub: `Shuffle ${label}s into groups` },
+                { val: "manual", title: "Manual groups", sub: `Place each ${label} yourself` },
+              ].map(({ val, title, sub }) => (
+                <button key={val} type="button" onClick={() => setAssignmentMode(val)} className={`mp-choice${assignmentMode === val ? " is-active" : ""}`}>
+                  <div className="mp-choice-title">{title}</div>
+                  <div className="mp-choice-sub">{sub}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="mp-card">
+            <div className="mp-card-title">Knockout Bracket</div>
+            <div className="mp-choice-row">
+              {[
+                { val: "auto", title: "Auto seed", sub: "Build bracket from group finishers" },
+                { val: "manual", title: "Manual bracket", sub: "Set pairings when pools finish" },
+              ].map(({ val, title, sub }) => (
+                <button key={val} type="button" onClick={() => setBracketSeeding(val)} className={`mp-choice${bracketSeeding === val ? " is-active" : ""}`}>
+                  <div className="mp-choice-title">{title}</div>
+                  <div className="mp-choice-sub">{sub}</div>
+                </button>
+              ))}
+            </div>
+          </div>
         </>}
 
         {isSingleElim && (
@@ -382,21 +473,115 @@ function AdminSetupForm({ onCreated, onCancel }) {
         </div>
         <div className="mp-modal-actions">
           <button className="mp-btn mp-btn-ghost flex-1" onClick={()=>setStep(1)}>← Back</button>
-          <button className="mp-btn mp-btn-primary flex-2" onClick={()=>{if(validateStep2())setStep(3);}}>
-            {isSingleElim ? "Review Bracket →" : "Review Draw →"}
+          <button className="mp-btn mp-btn-primary flex-2" onClick={()=>{
+            if (!validateStep2()) return;
+            setStep(isManualAssign ? 3 : reviewStep);
+          }}>
+            {isManualAssign
+              ? `Assign Groups →`
+              : isSingleElim
+                ? "Review Bracket →"
+                : "Review Draw →"}
           </button>
         </div>
       </>}
 
-      {step===3&&!isSingleElim&&(()=>{
-        const previewGroups=Array.from({length:numGroups},(_,i)=>({
-          id:`g${i}`,name:resolvedGroupName(i),
-          members:shuffle(teamNames.map((n,i)=>({id:`t${i}`,name:n.trim()}))).filter((_,ti)=>ti%numGroups===i),
+      {step===assignStep&&isManualAssign&&<>
+        <div className="mp-section-eyebrow">Groups</div>
+        <div className="mp-section-title">Assign {label}s</div>
+        <div className="mp-section-sub">
+          Place each {label} into a group. Target sizes: {sizeSummary}.
+        </div>
+        {errors.assignments && <div className="mp-error mb-12">⚠ {errors.assignments}</div>}
+        <div className="mp-card">
+          <div className="mp-card-title">
+            Unassigned {unassignedCount > 0 ? `(${unassignedCount})` : "· all placed"}
+          </div>
+          {unassignedCount === 0 ? (
+            <div className="font-meta-sm t-muted">Every {label} is in a group.</div>
+          ) : (
+            <div className="mp-assign-list">
+              {teamNames.map((name, i) => {
+                if (groupAssignments[i] !== null && groupAssignments[i] !== undefined) return null;
+                return (
+                  <div key={i} className="mp-assign-row">
+                    <div className="mp-assign-name">{name.trim() || `${Label} ${i + 1}`}</div>
+                    <select
+                      className="mp-select"
+                      value=""
+                      onChange={e => {
+                        const gi = Number(e.target.value);
+                        if (!Number.isNaN(gi)) assignTeamToGroup(i, gi);
+                      }}
+                    >
+                      <option value="" disabled>Assign…</option>
+                      {Array.from({ length: numGroups }, (_, gi) => (
+                        <option key={gi} value={gi}>
+                          {resolvedGroupName(gi)} ({assignmentCounts[gi]})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        {Array.from({ length: numGroups }, (_, gi) => (
+          <div key={gi} className="mp-card">
+            <div className="mp-group-preview-title">
+              {resolvedGroupName(gi)}
+              <span className="font-meta t-muted" style={{ marginLeft: 8 }}>{assignmentCounts[gi]} {label}{assignmentCounts[gi] === 1 ? "" : "s"}</span>
+            </div>
+            <div className="flex flex-wrap gap-6">
+              {teamNames.map((name, i) => {
+                if (groupAssignments[i] !== gi) return null;
+                return (
+                  <button
+                    key={i}
+                    type="button"
+                    className="mp-chip mp-chip-removable"
+                    onClick={() => clearTeamAssignment(i)}
+                    title="Remove from group"
+                  >
+                    {name.trim() || `${Label} ${i + 1}`}
+                    <span aria-hidden="true"> ×</span>
+                  </button>
+                );
+              })}
+              {assignmentCounts[gi] === 0 && (
+                <div className="font-meta-sm t-faint">No {label}s yet</div>
+              )}
+            </div>
+          </div>
+        ))}
+        <div className="mp-modal-actions">
+          <button className="mp-btn mp-btn-ghost flex-1" onClick={() => setStep(2)}>← Back</button>
+          <button className="mp-btn mp-btn-primary flex-2" onClick={() => { if (validateAssignments()) setStep(4); }}>
+            Review Groups →
+          </button>
+        </div>
+      </>}
+
+      {step===reviewStep&&!isSingleElim&&(()=>{
+        const previewGroups = Array.from({ length: numGroups }, (_, i) => ({
+          id: `g${i}`,
+          name: resolvedGroupName(i),
+          members: isManualAssign
+            ? teamNames
+                .map((n, ti) => ({ id: `t${ti}`, name: n.trim(), gi: groupAssignments[ti] }))
+                .filter(m => m.gi === i)
+            : shuffle(teamNames.map((n, ti) => ({ id: `t${ti}`, name: n.trim() }))).filter((_, ti) => ti % numGroups === i),
         }));
         return <>
           <div className="mp-section-eyebrow">Review</div>
-          <div className="mp-section-title">Round 1 Draw</div>
-          <div className="mp-section-sub">{Label}s randomly assigned. Tap Start to confirm.</div>
+          <div className="mp-section-title">{isManualAssign ? "Group Assignments" : "Round 1 Draw"}</div>
+          <div className="mp-section-sub">
+            {isManualAssign
+              ? `${Label}s placed manually. Tap Start to confirm.`
+              : `${Label}s randomly assigned. Tap Start to confirm.`}
+            {bracketSeeding === "manual" ? " Bracket pairings will be set after pool play." : ""}
+          </div>
           {previewGroups.map(g=>(
             <div key={g.id} className="mp-card">
               <div className="mp-group-preview-title">{g.name}</div>
@@ -410,7 +595,7 @@ function AdminSetupForm({ onCreated, onCancel }) {
                     <div className="mp-match-name right">{g.members[i*2+1]?.name}</div>
                   </div>
                 ))}
-                {g.members.length > 2 && (
+                {g.members.length > 2 && !isManualAssign && (
                   <div className="font-meta-sm t-faint mt-8">Preview shows sample pairings only — all round-robin matches are created on Start.</div>
                 )}
               </div>
@@ -431,20 +616,21 @@ function AdminSetupForm({ onCreated, onCancel }) {
             </div>
             <div className="font-meta-sm t-body">
               {sizeSummary} · {advancersPerGroup} advance per group · {totalAdvancers} total into knockout
+              {" · "}{bracketSeeding === "manual" ? "Manual bracket after pools" : "Auto-seeded bracket"}
             </div>
             {!hasEqualGroups&&<div className="font-meta-sm t-accent mt-8">⚠ Unequal pools play different numbers of matches and are not preferred.</div>}
             {!hasEqualGroups&&poolSuggestion&&<div className="font-meta-sm t-accent mt-4">💡 {poolSuggestion}</div>}
             {!hasCleanBracket&&suggestion&&<div className="font-meta-sm t-accent mt-4">💡 {suggestion}</div>}
           </div>
-          <div className="mp-info-box">⚠ Draw is re-randomized on Start. This is a preview.</div>
+          {!isManualAssign && <div className="mp-info-box">⚠ Draw is re-randomized on Start. This is a preview.</div>}
           <div className="mp-modal-actions">
-            <button className="mp-btn mp-btn-ghost flex-1" onClick={()=>setStep(2)}>← Back</button>
+            <button className="mp-btn mp-btn-ghost flex-1" onClick={()=>setStep(isManualAssign ? 3 : 2)}>← Back</button>
             <button className="mp-btn mp-btn-primary flex-2" onClick={startTournament}>Start Tournament →</button>
           </div>
         </>;
       })()}
 
-      {step===3&&isSingleElim&&(()=>{
+      {step===reviewStep&&isSingleElim&&(()=>{
         const previewNames=shuffle(teamNames.map(n=>n.trim()));
         const slots=[...previewNames];
         while (slots.length < elimBracketSize) slots.push(null);
@@ -550,13 +736,164 @@ function OverrideModal({ match, tournament, onSave, onClose }) {
   );
 }
 
-function AdminTournamentDetail({ tournament, onSaveMatch, onArchive, onBack }) {
+function BracketSetupPanel({ tournament, onConfirm, onCancel }) {
+  const advancers = collectAdvancers(tournament.groups || []);
+  const bracketSize = Math.pow(2, Math.ceil(Math.log2(Math.max(advancers.length, 2))));
+  const matchCount = bracketSize / 2;
+  const byeCount = bracketSize - advancers.length;
+
+  const [slots, setSlots] = useState(() =>
+    Array.from({ length: matchCount }, () => ({ teamA: null, teamB: null }))
+  );
+  const [error, setError] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  const assigned = new Set();
+  slots.forEach(s => {
+    if (s.teamA) assigned.add(s.teamA);
+    if (s.teamB) assigned.add(s.teamB);
+  });
+  const remaining = advancers.filter(id => !assigned.has(id));
+
+  function teamName(id) {
+    return tournament.teams.find(t => t.id === id)?.name || "—";
+  }
+
+  function advancerLabel(id) {
+    const team = tournament.teams.find(t => t.id === id);
+    const group = (tournament.groups || []).find(g => (g.winnerIds || []).includes(id) || g.winnerId === id);
+    const place = group?.winnerIds?.indexOf(id);
+    const placeLabel = place === 0 || (place == null && group?.winnerId === id)
+      ? "1st"
+      : place === 1 ? "2nd"
+        : place === 2 ? "3rd"
+          : place != null ? `${place + 1}th` : "";
+    return `${team?.name || "—"}${group ? ` · ${group.name}${placeLabel ? ` ${placeLabel}` : ""}` : ""}`;
+  }
+
+  function setSlotSide(slotIndex, side, value) {
+    setSlots(prev => {
+      const next = prev.map(s => ({ ...s }));
+      next[slotIndex] = { ...next[slotIndex], [side]: value || null };
+      return next;
+    });
+    setError(null);
+  }
+
+  function autoFill() {
+    const auto = generateBracket(tournament.groups || []);
+    const next = Array.from({ length: matchCount }, (_, i) => {
+      const m = auto[i];
+      return { teamA: m?.teamA || null, teamB: m?.teamB || null };
+    });
+    setSlots(next);
+    setError(null);
+  }
+
+  async function handleConfirm() {
+    const used = new Set();
+    for (let i = 0; i < slots.length; i++) {
+      const { teamA, teamB } = slots[i];
+      if (!teamA) {
+        setError(`Match ${i + 1} needs a player on side A`);
+        return;
+      }
+      if (used.has(teamA) || (teamB && used.has(teamB))) {
+        setError("Each advancer can only appear once");
+        return;
+      }
+      used.add(teamA);
+      if (teamB) used.add(teamB);
+      if (teamA === teamB) {
+        setError(`Match ${i + 1} cannot have the same player twice`);
+        return;
+      }
+    }
+    if (used.size !== advancers.length) {
+      setError(`Assign all ${advancers.length} advancers before confirming`);
+      return;
+    }
+    setSaving(true);
+    const ok = await onConfirm(slots);
+    setSaving(false);
+    if (ok === false) setError("Couldn't save — refresh and try again.");
+  }
+
+  const optionList = (currentId) => {
+    const opts = remaining.concat(currentId ? [currentId] : []);
+    return opts;
+  };
+
+  return (
+    <div className="mp-card mp-bracket-setup">
+      <div className="mp-card-title">Set Knockout Bracket</div>
+      <div className="font-meta-sm t-muted mb-14">
+        {advancers.length} advancers · {matchCount} round-1 matches
+        {byeCount > 0 ? ` · ${byeCount} bye${byeCount === 1 ? "" : "s"}` : ""}
+      </div>
+      {error && <div className="mp-error mb-12">⚠ {error}</div>}
+      <div className="mb-14">
+        <button type="button" className="mp-btn mp-btn-ghost" onClick={autoFill}>
+          Prefill from standings
+        </button>
+      </div>
+      {slots.map((slot, i) => (
+        <div key={i} className="mp-bracket-slot">
+          <div className="font-label t-faint mb-8">Match {i + 1}</div>
+          <div className="mp-bracket-slot-row">
+            <select
+              className="mp-select flex-1"
+              value={slot.teamA || ""}
+              onChange={e => setSlotSide(i, "teamA", e.target.value)}
+            >
+              <option value="">Side A…</option>
+              {optionList(slot.teamA).map(id => (
+                <option key={id} value={id}>{advancerLabel(id)}</option>
+              ))}
+            </select>
+            <div className="font-meta t-muted">vs</div>
+            <select
+              className="mp-select flex-1"
+              value={slot.teamB || ""}
+              onChange={e => setSlotSide(i, "teamB", e.target.value)}
+            >
+              <option value="">Bye</option>
+              {optionList(slot.teamB).map(id => (
+                <option key={id} value={id}>{advancerLabel(id)}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      ))}
+      {remaining.length > 0 && (
+        <div className="mp-info-box mt-8 mb-14">
+          Still to place: {remaining.map(id => teamName(id)).join(", ")}
+        </div>
+      )}
+      <div className="mp-modal-actions">
+        {onCancel && (
+          <button type="button" className="mp-btn mp-btn-ghost flex-1" onClick={onCancel}>Cancel</button>
+        )}
+        <button
+          type="button"
+          className="mp-btn mp-btn-primary flex-2"
+          disabled={saving}
+          onClick={handleConfirm}
+        >
+          {saving ? "Saving…" : "Confirm Bracket →"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function AdminTournamentDetail({ tournament, onSaveMatch, onUpdateTournament, onArchive, onBack }) {
   const [overrideMatch, setOverrideMatch] = useState(null);
-  const [tab, setTab] = useState("matches");
+  const [tab, setTab] = useState(tournament.phase === "bracket_setup" ? "bracket" : "matches");
   const [toast, setToast] = useState(null);
   function showToast(msg){setToast(msg);setTimeout(()=>setToast(null),2500);}
 
-  const allMatches=[...tournament.matches,...tournament.bracket];
+  const allMatches=[...tournament.matches,...(tournament.bracket || [])];
   const disputed=allMatches.filter(m=>m.status==="disputed");
   const awaitingValidation=allMatches.filter(m=>m.status==="pending_validation");
   const groups = tournament.groups || [];
@@ -564,14 +901,15 @@ function AdminTournamentDetail({ tournament, onSaveMatch, onArchive, onBack }) {
   const bracket = tournament.bracket || [];
   const bracketRounds = [...new Set(bracket.map(m => m.bracketRound))].sort((a, b) => a - b);
   const hasBracketList = bracket.some(m => !m.isBye);
+  const needsBracketSetup = tournament.phase === "bracket_setup";
 
   const defaultExpanded = (() => {
     const ids = [];
-    if (hasPools && tournament.phase === "group") {
+    if (hasPools && (tournament.phase === "group" || tournament.phase === "bracket_setup")) {
       const playing = groups.filter(g => g.status !== "done");
       (playing.length ? playing : groups.slice(0, 1)).forEach(g => ids.push(g.id));
     }
-    if (hasBracketList && (!hasPools || tournament.phase !== "group")) {
+    if (hasBracketList && (!hasPools || (tournament.phase !== "group" && tournament.phase !== "bracket_setup"))) {
       let openedRound = false;
       for (const r of bracketRounds) {
         const hasOpen = bracket.some(m => m.bracketRound === r && !m.isBye && m.status !== "closed");
@@ -604,6 +942,15 @@ function AdminTournamentDetail({ tournament, onSaveMatch, onArchive, onBack }) {
     const ok = await onSaveMatch(matchId, updatedMatch, isGroup);
     if (ok === false) showToast("Couldn't save — refresh and try again.");
     else showToast("Result overridden ✓");
+  }
+
+  async function handleConfirmBracket(slots) {
+    if (!onUpdateTournament) return false;
+    const ok = await onUpdateTournament(t => confirmBracketSetup(t, slots));
+    if (ok === false) return false;
+    showToast("Bracket confirmed ✓");
+    setTab("bracket");
+    return true;
   }
 
   function AdminMatchRow({ m }) {
@@ -737,14 +1084,14 @@ function AdminTournamentDetail({ tournament, onSaveMatch, onArchive, onBack }) {
       {overrideMatch&&<OverrideModal match={overrideMatch} tournament={tournament} onSave={handleOverrideSave} onClose={()=>setOverrideMatch(null)}/>}
       <div className="mp-page pb-0">
         <button onClick={onBack} className="mp-back-btn mb">← All Tournaments</button>
-        <div className="font-label t-accent mb-4">{tournament.mode==="players"?"Singles":"Teams"} · {styleLabel(tournamentStyleOf(tournament))} · {tournament.phase}</div>
+        <div className="font-label t-accent mb-4">{tournament.mode==="players"?"Singles":"Teams"} · {styleLabel(tournamentStyleOf(tournament))} · {needsBracketSetup ? "set bracket" : tournament.phase}</div>
         <div className="mp-section-title mb-0">{tournament.name}</div>
       </div>
       <div className="mp-underline-tabs sticky">
         <div className="mp-underline-tabs">
           {[
             {id:"matches",label: disputed.length ? `Matches (${disputed.length})` : "Matches"},
-            {id:"bracket",label:"Bracket"},
+            {id:"bracket",label: needsBracketSetup ? "Set Bracket" : "Bracket"},
             {id:"info",label:"Info"},
           ].map(item=>(
             <button key={item.id} onClick={()=>setTab(item.id)} className={`mp-underline-tab pad-sm${tab===item.id?" is-active":""}`}>
@@ -756,6 +1103,17 @@ function AdminTournamentDetail({ tournament, onSaveMatch, onArchive, onBack }) {
 
       {tab==="matches"&&(
         <div className="mp-page">
+          {needsBracketSetup && (
+            <div className="mp-admin-alert mb-16">
+              <div className="mp-admin-alert-body">
+                <div className="mp-admin-alert-title">Pools complete — set the knockout bracket</div>
+                <div className="mp-admin-alert-line">Group play is finished. Pair the advancers to start the bracket.</div>
+              </div>
+              <button type="button" className="mp-admin-alert-btn" onClick={() => setTab("bracket")}>
+                Set Bracket
+              </button>
+            </div>
+          )}
           {(awaitingValidation.length>0||disputed.length>0)&&(
             <div className="mb-16">
               {awaitingValidation.length>0&&(
@@ -812,7 +1170,7 @@ function AdminTournamentDetail({ tournament, onSaveMatch, onArchive, onBack }) {
           {hasPools && (
             <>
               <div className="mp-section-eyebrow">
-                {tournament.phase === "bracket" || tournament.phase === "complete" ? "Pool Play · History" : "Pool Play"}
+                {tournament.phase === "bracket" || tournament.phase === "complete" || tournament.phase === "bracket_setup" ? "Pool Play · History" : "Pool Play"}
               </div>
               <div className="mp-section-title mb-14">Groups</div>
               {groups.map(g => <AdminGroupAccordion key={g.id} g={g} />)}
@@ -838,16 +1196,20 @@ function AdminTournamentDetail({ tournament, onSaveMatch, onArchive, onBack }) {
       {tab==="bracket"&&(
         <div className="mp-page">
           <div className="mp-section-eyebrow">Knockout</div>
-          <div className="mp-section-title mb-0">Bracket</div>
-          <BracketView
-            tournament={tournament}
-            mode="admin"
-            compact
-            onOpenMatch={(matchId) => {
-              const m = [...tournament.matches, ...tournament.bracket].find(x => x.id === matchId);
-              if (m && !m.isBye) setOverrideMatch(m);
-            }}
-          />
+          <div className="mp-section-title mb-0">{needsBracketSetup ? "Set Bracket" : "Bracket"}</div>
+          {needsBracketSetup ? (
+            <BracketSetupPanel tournament={tournament} onConfirm={handleConfirmBracket} />
+          ) : (
+            <BracketView
+              tournament={tournament}
+              mode="admin"
+              compact
+              onOpenMatch={(matchId) => {
+                const m = [...tournament.matches, ...(tournament.bracket || [])].find(x => x.id === matchId);
+                if (m && !m.isBye) setOverrideMatch(m);
+              }}
+            />
+          )}
         </div>
       )}
 
@@ -859,10 +1221,15 @@ function AdminTournamentDetail({ tournament, onSaveMatch, onArchive, onBack }) {
             {[
               ["Format",tournament.mode==="players"?"Singles":"Teams"],
               ["Style",styleLabel(tournamentStyleOf(tournament))],
-              ["Phase",tournament.phase],
+              ["Phase",needsBracketSetup ? "Set bracket" : tournament.phase],
               ["Field",tournament.numTeams],
               ...(tournamentStyleOf(tournament)==="pool_bracket"
-                ? [["Groups",tournament.numGroups],["Advancers/Group",tournament.advancersPerGroup]]
+                ? [
+                    ["Groups",tournament.numGroups],
+                    ["Advancers/Group",tournament.advancersPerGroup],
+                    ["Group draw", tournament.assignmentMode === "manual" ? "Manual" : "Random"],
+                    ["Bracket seeding", tournament.bracketSeeding === "manual" ? "Manual" : "Auto"],
+                  ]
                 : []),
               ["Created",new Date(tournament.createdAt).toLocaleDateString()],
             ].map(([k,v])=>(
@@ -892,6 +1259,7 @@ export default function AdminHome({
   onEnsureArchives,
   onCreateTournament,
   onSaveMatch,
+  onUpdateTournament,
   onArchive,
   onSaveDiscordWebhook,
   onSaveAppSettings,
@@ -926,6 +1294,9 @@ export default function AdminHome({
       <AdminTournamentDetail
         tournament={selected}
         onSaveMatch={(matchId, match, isGroup) => onSaveMatch(selected.id, matchId, match, isGroup)}
+        onUpdateTournament={onUpdateTournament
+          ? (updater) => onUpdateTournament(selected.id, updater)
+          : undefined}
         onArchive={selected.status === "active" ? () => { onArchive(selected.id); setSelectedId(null); } : undefined}
         onBack={() => setSelectedId(null)}
       />
@@ -963,7 +1334,7 @@ export default function AdminHome({
             <div key={t.id} className="mp-card mp-clickable" onClick={() => setSelectedId(t.id)}>
               <div className="flex justify-between mb-8">
                 <div>
-                  <div className="font-label t-accent mb-4">{t.mode === "players" ? "Singles" : "Teams"} · {styleLabel(tournamentStyleOf(t))} · {t.phase}</div>
+                  <div className="font-label t-accent mb-4">{t.mode === "players" ? "Singles" : "Teams"} · {styleLabel(tournamentStyleOf(t))} · {t.phase === "bracket_setup" ? "set bracket" : t.phase}</div>
                   <div className="t-heading fw-700">{t.name}</div>
                 </div>
                 <span className="font-meta t-accent">Manage →</span>

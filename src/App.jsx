@@ -179,6 +179,19 @@ export default function App() {
     });
   }
 
+  async function handleUpdateTournament(tournId, updater) {
+    return persistWithRetry(base => {
+      const tournament = base.tournaments.find(t => t.id === tournId);
+      if (!tournament) return null;
+      const next = typeof updater === "function" ? updater(tournament) : updater;
+      if (!next) return null;
+      return {
+        ...base,
+        tournaments: base.tournaments.map(t => t.id === tournId ? next : t),
+      };
+    });
+  }
+
   async function handleSaveMatch(tournId, matchId, updatedMatch, isGroupMatch) {
     const tournamentBefore = dbRef.current.tournaments.find(t => t.id === tournId);
     const prevMatch = tournamentBefore
@@ -325,6 +338,7 @@ export default function App() {
           onEnsureArchives={ensureArchives}
           onCreateTournament={handleCreateTournament}
           onSaveMatch={handleSaveMatch}
+          onUpdateTournament={handleUpdateTournament}
           onArchive={handleArchive}
           onSaveDiscordWebhook={handleSaveDiscordWebhook}
           onSaveAppSettings={handleSaveAppSettings}
