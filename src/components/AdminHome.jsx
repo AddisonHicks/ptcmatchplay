@@ -3,6 +3,7 @@ import { Toast } from "./Toast.jsx";
 import BracketView from "./BracketView.jsx";
 import AdminAppSettings from "./AdminAppSettings.jsx";
 import { initTournament, collectAdvancers, confirmBracketSetup, generateBracket, startKnockoutAuto, startKnockoutManual, canStartKnockout } from "../lib/engine.js";
+import { usePersistedAccordion } from "../lib/accordionPrefs.js";
 import {
   nowIso,
   localDateInputValue,
@@ -1116,11 +1117,16 @@ function AdminTournamentDetail({ tournament, onSaveMatch, onUpdateTournament, on
     }
     return ids;
   })();
-  const [expandedIds, setExpandedIds] = useState(defaultExpanded);
-
-  function toggleSection(id) {
-    setExpandedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-  }
+  const validAccordionIds = [
+    ...groups.map(g => g.id),
+    ...bracketRounds.map(r => `__round_${r}`),
+  ];
+  const { expandedIds, toggle: toggleSection } = usePersistedAccordion(
+    "admin-matches",
+    tournament.id,
+    defaultExpanded,
+    validAccordionIds
+  );
 
   function forceApproveFromSubmission(m) {
     const sub = m.submissionA || m.submissionB;

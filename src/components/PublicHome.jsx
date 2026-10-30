@@ -5,6 +5,7 @@ import { ScorecardScreen } from "./ScorecardScreen.jsx";
 import BracketView from "./BracketView.jsx";
 import { tournamentStyleOf, styleLabel, matchPlayedLabel, matchActivityLabel, nowIso, waitingForTeamId, pendingValidationLabel, bracketRoundLabel } from "../lib/format.js";
 import { computeGroupStats, sortByRecord, submissionsMatch, groupAdvancementNotes, matchCloseStr } from "../lib/engine.js";
+import { usePersistedAccordion } from "../lib/accordionPrefs.js";
 
 function PublicMatchesTab({ tournament, onOpenMatch }) {
   function getTeam(id) { return tournament.teams.find(t => t.id === id); }
@@ -37,11 +38,16 @@ function PublicMatchesTab({ tournament, onOpenMatch }) {
     return ids;
   })();
 
-  const [expandedIds, setExpandedIds] = useState(defaultExpanded);
-
-  function toggle(id) {
-    setExpandedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-  }
+  const validAccordionIds = [
+    ...groups.map(g => g.id),
+    ...bracketRounds.map(r => `__round_${r}`),
+  ];
+  const { expandedIds, toggle } = usePersistedAccordion(
+    "public-matches",
+    tournament.id,
+    defaultExpanded,
+    validAccordionIds
+  );
 
   function statusBadge(m) {
     if (m.status === "disputed") return <span className="badge badge-disputed">⚠ Disputed</span>;
@@ -279,12 +285,13 @@ function PublicStandingsTab({ tournament }) {
   const hasPools = tournamentStyleOf(tournament) !== "single_elim" && groups?.length > 0;
 
   const defaultExpanded = hasPools ? groups.map(g => g.id) : [];
-
-  const [expandedIds, setExpandedIds] = useState(defaultExpanded);
-
-  function toggle(id) {
-    setExpandedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-  }
+  const validAccordionIds = groups.map(g => g.id);
+  const { expandedIds, toggle } = usePersistedAccordion(
+    "public-standings",
+    tournament.id,
+    defaultExpanded,
+    validAccordionIds
+  );
 
   if (!hasPools) {
     return (
