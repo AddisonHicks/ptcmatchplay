@@ -51,6 +51,7 @@ function normalizeColors(colors) {
 export function emptyAppSettings() {
   return {
     discordWebhookUrl: null,
+    discordThreadId: null,
     groupName: null,
     groupLogoUrl: null,
     colors: null,
@@ -60,8 +61,14 @@ export function emptyAppSettings() {
 export function normalizeAppSettings(state = {}) {
   const groupName = typeof state.groupName === "string" ? state.groupName.trim() : "";
   const groupLogoUrl = typeof state.groupLogoUrl === "string" ? state.groupLogoUrl.trim() : "";
+  const discordThreadId =
+    typeof state.discordThreadId === "string" || typeof state.discordThreadId === "number"
+      ? String(state.discordThreadId).trim()
+      : "";
   return {
     discordWebhookUrl: state.discordWebhookUrl?.trim() || null,
+    // Discord snowflake — digits only; empty clears
+    discordThreadId: /^\d+$/.test(discordThreadId) ? discordThreadId : null,
     groupName: groupName || null,
     groupLogoUrl: groupLogoUrl || null,
     colors: normalizeColors(state.colors),
