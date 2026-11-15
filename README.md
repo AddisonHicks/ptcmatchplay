@@ -111,7 +111,7 @@ You can also run it manually from the **Actions** tab → **Keep Supabase Alive*
 Configure an app-wide Discord webhook in **Admin Panel** (commissioner home, above the tournament list).
 
 - Stored on the main Supabase state as `discordWebhookUrl` (not an env var)
-- Fires when a match transitions to **closed** (both sides agree, admin override, or force-approve)
+- Fires when a match transitions to **closed** (both sides agree, admin override, or force-approve), and again when an admin overrides an already-closed result
 - The webhook URL is client-readable (same model as other app data); treat the Discord channel as semi-public
 - Per-tournament overrides are supported in code (`tournament.discordWebhookUrl`) but not exposed in the UI yet
 

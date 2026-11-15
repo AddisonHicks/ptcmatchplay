@@ -198,12 +198,18 @@ export default function App() {
       ? [...(tournamentBefore.matches || []), ...(tournamentBefore.bracket || [])].find(m => m.id === matchId)
       : null;
     const wasClosed = prevMatch?.status === "closed";
+    const isFreshClose = updatedMatch.status === "closed" && !wasClosed;
+    const isFreshOverride =
+      updatedMatch.status === "closed" &&
+      !!updatedMatch.overriddenAt &&
+      updatedMatch.overriddenAt !== prevMatch?.overriddenAt;
 
     const ok = await persistWithRetry(base =>
       applyMatchToDb(base, tournId, matchId, updatedMatch, isGroupMatch)
     );
 
-    if (ok && updatedMatch.status === "closed" && !wasClosed) {
+    // Notify on first close (validated or override) and on later admin overrides
+    if (ok && (isFreshClose || isFreshOverride)) {
       const tournament = dbRef.current.tournaments.find(t => t.id === tournId) || tournamentBefore;
       const webhookUrl = resolveDiscordWebhook(tournament, dbRef.current);
       if (webhookUrl) {

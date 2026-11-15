@@ -169,12 +169,14 @@ export function tournamentPublicUrl(tournamentId) {
 function seeTournamentComponents(tournamentId) {
   const url = tournamentPublicUrl(tournamentId);
   if (!url) return undefined;
+  // Discord link button: type 2 (button) + style 5 (link). type 5 is user-select and is rejected.
   return [
     {
       type: 1,
       components: [
         {
-          type: 5,
+          type: 2,
+          style: 5,
           label: "See Full Tournament",
           url,
         },
@@ -183,11 +185,27 @@ function seeTournamentComponents(tournamentId) {
   ];
 }
 
+/** Append query flags Discord needs for webhook execute (e.g. with_components). */
+export function webhookExecuteUrl(webhookUrl, { withComponents = false } = {}) {
+  const url = webhookUrl?.trim();
+  if (!url) return url;
+  if (!withComponents) return url;
+  try {
+    const u = new URL(url);
+    u.searchParams.set("with_components", "true");
+    return u.toString();
+  } catch {
+    const sep = url.includes("?") ? "&" : "?";
+    return `${url}${sep}with_components=true`;
+  }
+}
+
 export function buildDiscordMatchPayload({ tournament, match, accentColor }) {
   const { title, detail } = resultSummary(tournament, match);
   const score = match.closeStr || matchCloseStr(match) || "";
   const stage = matchStageLabel(tournament, match);
   const overridden = !!match.overriddenAt;
+  const tournamentUrl = tournamentPublicUrl(tournament?.id);
 
   const standings = isPoolMatch(match)
     ? formatGroupStandings(tournament, match.groupId)
@@ -225,6 +243,7 @@ export function buildDiscordMatchPayload({ tournament, match, accentColor }) {
         description: detail,
         color: embedColor,
         fields,
+        ...(tournamentUrl ? { url: tournamentUrl } : {}),
       },
     ],
     ...(components ? { components } : {}),
@@ -236,7 +255,10 @@ export async function postDiscordWebhook(webhookUrl, body) {
   if (!url || !isDiscordWebhookUrl(url)) {
     throw new Error("Invalid Discord webhook URL");
   }
-  const res = await fetch(url, {
+  const executeUrl = webhookExecuteUrl(url, {
+    withComponents: Array.isArray(body?.components) && body.components.length > 0,
+  });
+  const res = await fetch(executeUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
