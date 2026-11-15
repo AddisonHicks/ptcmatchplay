@@ -11,7 +11,11 @@ import {
   activeOnly,
 } from "./lib/storage.js";
 import { applyMatchToDb } from "./lib/engine.js";
-import { resolveDiscordWebhook, postDiscordMatchResult } from "./lib/discord.js";
+import {
+  resolveDiscordWebhook,
+  resolveDiscordThreadId,
+  postDiscordMatchResult,
+} from "./lib/discord.js";
 import {
   applyAppColors,
   normalizeAppSettings,
@@ -198,18 +202,26 @@ export default function App() {
       ? [...(tournamentBefore.matches || []), ...(tournamentBefore.bracket || [])].find(m => m.id === matchId)
       : null;
     const wasClosed = prevMatch?.status === "closed";
+    const isFreshClose = updatedMatch.status === "closed" && !wasClosed;
+    const isFreshOverride =
+      updatedMatch.status === "closed" &&
+      !!updatedMatch.overriddenAt &&
+      updatedMatch.overriddenAt !== prevMatch?.overriddenAt;
 
     const ok = await persistWithRetry(base =>
       applyMatchToDb(base, tournId, matchId, updatedMatch, isGroupMatch)
     );
 
-    if (ok && updatedMatch.status === "closed" && !wasClosed) {
+    // Notify on first close (validated or override) and on later admin overrides
+    if (ok && (isFreshClose || isFreshOverride)) {
       const tournament = dbRef.current.tournaments.find(t => t.id === tournId) || tournamentBefore;
       const webhookUrl = resolveDiscordWebhook(tournament, dbRef.current);
       if (webhookUrl) {
         const accentColor = dbRef.current.colors?.peach;
+        const threadId = resolveDiscordThreadId(tournament, dbRef.current);
         postDiscordMatchResult({
           webhookUrl,
+          threadId,
           tournament,
           match: updatedMatch,
           accentColor,
@@ -222,11 +234,17 @@ export default function App() {
     return ok;
   }
 
-  async function handleSaveDiscordWebhook(url) {
-    const trimmed = (url || "").trim();
+  async function handleSaveDiscordWebhook({ url, threadId } = {}) {
+    const trimmedUrl = (url || "").trim();
+    const trimmedThread =
+      threadId == null ? "" : String(threadId).trim();
     return persistWithRetry(base => ({
       ...base,
-      discordWebhookUrl: trimmed || null,
+      ...normalizeAppSettings({
+        ...base,
+        discordWebhookUrl: trimmedUrl || null,
+        discordThreadId: trimmedThread || null,
+      }),
     }));
   }
 
@@ -235,11 +253,15 @@ export default function App() {
       const merged = normalizeAppSettings({
         ...base,
         ...partial,
-        // Keep webhook unless the caller explicitly included it
+        // Keep Discord fields unless the caller explicitly included them
         discordWebhookUrl:
           partial && Object.prototype.hasOwnProperty.call(partial, "discordWebhookUrl")
             ? partial.discordWebhookUrl
             : base.discordWebhookUrl,
+        discordThreadId:
+          partial && Object.prototype.hasOwnProperty.call(partial, "discordThreadId")
+            ? partial.discordThreadId
+            : base.discordThreadId,
       });
       return { ...base, ...merged };
     });

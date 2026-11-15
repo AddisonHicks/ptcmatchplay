@@ -9,9 +9,22 @@ import {
 } from "./appSettings.js";
 
 const DISCORD_WEBHOOK_RE = /^https:\/\/(?:discord\.com|discordapp\.com)\/api\/webhooks\//i;
+const DISCORD_SNOWFLAKE_RE = /^\d+$/;
 
 export function isDiscordWebhookUrl(url) {
   return typeof url === "string" && DISCORD_WEBHOOK_RE.test(url.trim());
+}
+
+/** Normalize an optional Discord thread/post snowflake (digits only). */
+export function normalizeDiscordThreadId(threadId) {
+  if (threadId == null) return null;
+  const trimmed = String(threadId).trim();
+  if (!trimmed) return null;
+  return DISCORD_SNOWFLAKE_RE.test(trimmed) ? trimmed : null;
+}
+
+export function isDiscordThreadId(threadId) {
+  return !!normalizeDiscordThreadId(threadId);
 }
 
 /** Prefer per-tournament override, then app-wide URL. */
@@ -20,6 +33,13 @@ export function resolveDiscordWebhook(tournament, db) {
   if (fromTourn) return fromTourn;
   const fromDb = db?.discordWebhookUrl?.trim();
   return fromDb || null;
+}
+
+/** Prefer per-tournament override, then app-wide forum thread ID. */
+export function resolveDiscordThreadId(tournament, db) {
+  const fromTourn = normalizeDiscordThreadId(tournament?.discordThreadId);
+  if (fromTourn) return fromTourn;
+  return normalizeDiscordThreadId(db?.discordThreadId);
 }
 
 function teamName(tournament, teamId) {
@@ -169,12 +189,14 @@ export function tournamentPublicUrl(tournamentId) {
 function seeTournamentComponents(tournamentId) {
   const url = tournamentPublicUrl(tournamentId);
   if (!url) return undefined;
+  // Discord link button: type 2 (button) + style 5 (link). type 5 is user-select and is rejected.
   return [
     {
       type: 1,
       components: [
         {
-          type: 5,
+          type: 2,
+          style: 5,
           label: "See Full Tournament",
           url,
         },
@@ -183,11 +205,36 @@ function seeTournamentComponents(tournamentId) {
   ];
 }
 
+/**
+ * Append query flags Discord needs for webhook execute
+ * (`with_components`, optional `thread_id` for existing forum posts/threads).
+ */
+export function webhookExecuteUrl(webhookUrl, { withComponents = false, threadId = null } = {}) {
+  const url = webhookUrl?.trim();
+  if (!url) return url;
+  const tid = normalizeDiscordThreadId(threadId);
+  if (!withComponents && !tid) return url;
+  try {
+    const u = new URL(url);
+    if (withComponents) u.searchParams.set("with_components", "true");
+    if (tid) u.searchParams.set("thread_id", tid);
+    return u.toString();
+  } catch {
+    const parts = [];
+    if (withComponents) parts.push("with_components=true");
+    if (tid) parts.push(`thread_id=${encodeURIComponent(tid)}`);
+    if (!parts.length) return url;
+    const sep = url.includes("?") ? "&" : "?";
+    return `${url}${sep}${parts.join("&")}`;
+  }
+}
+
 export function buildDiscordMatchPayload({ tournament, match, accentColor }) {
   const { title, detail } = resultSummary(tournament, match);
   const score = match.closeStr || matchCloseStr(match) || "";
   const stage = matchStageLabel(tournament, match);
   const overridden = !!match.overriddenAt;
+  const tournamentUrl = tournamentPublicUrl(tournament?.id);
 
   const standings = isPoolMatch(match)
     ? formatGroupStandings(tournament, match.groupId)
@@ -225,18 +272,23 @@ export function buildDiscordMatchPayload({ tournament, match, accentColor }) {
         description: detail,
         color: embedColor,
         fields,
+        ...(tournamentUrl ? { url: tournamentUrl } : {}),
       },
     ],
     ...(components ? { components } : {}),
   };
 }
 
-export async function postDiscordWebhook(webhookUrl, body) {
+export async function postDiscordWebhook(webhookUrl, body, { threadId = null } = {}) {
   const url = webhookUrl?.trim();
   if (!url || !isDiscordWebhookUrl(url)) {
     throw new Error("Invalid Discord webhook URL");
   }
-  const res = await fetch(url, {
+  const executeUrl = webhookExecuteUrl(url, {
+    withComponents: Array.isArray(body?.components) && body.components.length > 0,
+    threadId,
+  });
+  const res = await fetch(executeUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -248,15 +300,25 @@ export async function postDiscordWebhook(webhookUrl, body) {
   return true;
 }
 
-export async function postDiscordMatchResult({ webhookUrl, tournament, match, accentColor }) {
+export async function postDiscordMatchResult({
+  webhookUrl,
+  threadId,
+  tournament,
+  match,
+  accentColor,
+}) {
   const payload = buildDiscordMatchPayload({ tournament, match, accentColor });
-  return postDiscordWebhook(webhookUrl, payload);
+  return postDiscordWebhook(webhookUrl, payload, { threadId });
 }
 
-export async function postDiscordTestMessage(webhookUrl, { groupName } = {}) {
+export async function postDiscordTestMessage(webhookUrl, { groupName, threadId } = {}) {
   const brand = resolveGroupName({ groupName });
-  return postDiscordWebhook(webhookUrl, {
-    content: `**${brand} Match Play** — Discord notifications are connected ✓`,
-  });
+  return postDiscordWebhook(
+    webhookUrl,
+    {
+      content: `**${brand} Match Play** — Discord notifications are connected ✓`,
+    },
+    { threadId }
+  );
 }
 

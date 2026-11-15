@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { Toast } from "./Toast.jsx";
 import {
   isDiscordWebhookUrl,
+  isDiscordThreadId,
+  normalizeDiscordThreadId,
   postDiscordTestMessage,
 } from "../lib/discord.js";
 import {
@@ -26,6 +28,7 @@ export default function AdminAppSettings({
   const [groupLogoUrl, setGroupLogoUrl] = useState(db.groupLogoUrl || "");
   const [colors, setColors] = useState(() => resolveColors(db));
   const [webhookDraft, setWebhookDraft] = useState(db.discordWebhookUrl || "");
+  const [threadIdDraft, setThreadIdDraft] = useState(db.discordThreadId || "");
   const [brandBusy, setBrandBusy] = useState(false);
   const [colorsBusy, setColorsBusy] = useState(false);
   const [webhookBusy, setWebhookBusy] = useState(false);
@@ -41,6 +44,7 @@ export default function AdminAppSettings({
     setGroupLogoUrl(db.groupLogoUrl || "");
     setColors(resolveColors(db));
     setWebhookDraft(db.discordWebhookUrl || "");
+    setThreadIdDraft(db.discordThreadId || "");
   }, [db]);
 
   const previewName = groupName.trim() || DEFAULT_GROUP_NAME;
@@ -89,12 +93,20 @@ export default function AdminAppSettings({
 
   async function saveWebhook() {
     const trimmed = webhookDraft.trim();
+    const threadTrimmed = threadIdDraft.trim();
     if (trimmed && !isDiscordWebhookUrl(trimmed)) {
       showToast("Enter a valid Discord webhook URL");
       return;
     }
+    if (threadTrimmed && !isDiscordThreadId(threadTrimmed)) {
+      showToast("Thread ID must be digits only (Discord snowflake)");
+      return;
+    }
     setWebhookBusy(true);
-    const ok = await onSaveDiscordWebhook?.(trimmed);
+    const ok = await onSaveDiscordWebhook?.({
+      url: trimmed,
+      threadId: threadTrimmed || null,
+    });
     setWebhookBusy(false);
     if (ok === false) showToast("Couldn't save webhook — try again");
     else showToast(trimmed ? "Discord webhook saved ✓" : "Discord webhook cleared");
@@ -102,8 +114,9 @@ export default function AdminAppSettings({
 
   async function clearWebhook() {
     setWebhookDraft("");
+    setThreadIdDraft("");
     setWebhookBusy(true);
-    const ok = await onSaveDiscordWebhook?.("");
+    const ok = await onSaveDiscordWebhook?.({ url: "", threadId: null });
     setWebhookBusy(false);
     if (ok === false) showToast("Couldn't clear webhook — try again");
     else showToast("Discord webhook cleared");
@@ -111,19 +124,29 @@ export default function AdminAppSettings({
 
   async function testWebhook() {
     const url = webhookDraft.trim() || db.discordWebhookUrl || "";
+    const threadTrimmed = threadIdDraft.trim() || db.discordThreadId || "";
     if (!isDiscordWebhookUrl(url)) {
       showToast("Save a valid Discord webhook URL first");
+      return;
+    }
+    if (threadTrimmed && !isDiscordThreadId(threadTrimmed)) {
+      showToast("Thread ID must be digits only (Discord snowflake)");
       return;
     }
     setWebhookBusy(true);
     try {
       await postDiscordTestMessage(url, {
         groupName: resolveGroupName(db),
+        threadId: normalizeDiscordThreadId(threadTrimmed),
       });
       showToast("Test message sent ✓");
     } catch (e) {
       console.error(e);
-      showToast("Test failed — check the webhook URL");
+      showToast(
+        threadTrimmed
+          ? "Test failed — check the webhook URL and thread ID"
+          : "Test failed — check the webhook URL"
+      );
     }
     setWebhookBusy(false);
   }
@@ -251,7 +274,7 @@ export default function AdminAppSettings({
       <div className="mp-card mp-discord-card mb-20">
         <div className="mp-card-title">Discord notifications</div>
         <div className="mp-section-sub mb-12">
-          Posts to this channel when a match result is validated or overridden. App-wide for all tournaments.
+          Posts when a match result is validated or overridden. App-wide for all tournaments.
         </div>
         <div className="font-label t-muted mb-6">Webhook URL</div>
         <input
@@ -263,6 +286,22 @@ export default function AdminAppSettings({
           autoComplete="off"
           spellCheck={false}
         />
+        <div className="font-label t-muted mb-6">Thread ID (optional)</div>
+        <input
+          className="mp-input mb-8"
+          type="text"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          value={threadIdDraft}
+          onChange={e => setThreadIdDraft(e.target.value)}
+          placeholder="e.g. 1234567890123456789"
+          autoComplete="off"
+          spellCheck={false}
+        />
+        <div className="font-meta-sm t-muted mb-12">
+          For a Discord forum channel, paste an existing thread/post ID. Leave blank to post in the channel.
+          We append <code className="mp-inline-code">?thread_id=…</code> for you — no need to edit the webhook URL.
+        </div>
         <div className="mp-discord-actions">
           <button type="button" className="mp-btn mp-btn-primary" onClick={saveWebhook} disabled={webhookBusy}>
             Save
@@ -274,13 +313,19 @@ export default function AdminAppSettings({
             type="button"
             className="mp-btn mp-btn-ghost"
             onClick={clearWebhook}
-            disabled={webhookBusy || (!webhookDraft && !db.discordWebhookUrl)}
+            disabled={
+              webhookBusy ||
+              (!webhookDraft && !threadIdDraft && !db.discordWebhookUrl && !db.discordThreadId)
+            }
           >
             Clear
           </button>
         </div>
         {db.discordWebhookUrl && (
-          <div className="font-meta-sm t-muted mt-10">Webhook configured — notifications are on</div>
+          <div className="font-meta-sm t-muted mt-10">
+            Webhook configured — notifications are on
+            {db.discordThreadId ? ` · thread ${db.discordThreadId}` : ""}
+          </div>
         )}
       </div>
 
